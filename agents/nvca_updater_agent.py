@@ -1,38 +1,25 @@
-# 🔄 NVCAUpdaterAgentV2 – Full VC Record Extractor
 import requests
 from bs4 import BeautifulSoup
 import logging
 
 class NVCAUpdaterAgentV2:
-    def __init__(self, base_url="https://nvca.org/nvca-members/"):
-        self.base_url = base_url
-        self.headers = {"User-Agent": "Mozilla/5.0"}
+    def __init__(self, nvca_url="https://nvca.org/nvca-members/"):
+        self.url = nvca_url
 
     def fetch_vc_records(self):
         try:
-            res = requests.get(self.base_url, headers=self.headers, timeout=10)
-            soup = BeautifulSoup(res.text, "html.parser")
-            vc_blocks = soup.find_all("div", class_="member-list__item")
-            records = []
+            response = requests.get(self.url, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
+            firms = []
 
-            for block in vc_blocks:
-                name_tag = block.find("h3")
-                link_tag = block.find("a", href=True)
-                loc_tag = block.find("div", class_="member-list__location")
+            for a in soup.select("a[href*='http']"):
+                href = a.get("href")
+                name = a.text.strip()
+                if href and name:
+                    firms.append({"name": name, "url": href})
 
-                vc_name = name_tag.text.strip() if name_tag else "Unknown VC"
-                vc_url = link_tag['href'].strip() if link_tag else None
-                vc_location = loc_tag.text.strip() if loc_tag else None
-
-                if vc_url and vc_url.startswith("http"):
-                    records.append({
-                        "name": vc_name,
-                        "url": vc_url,
-                        "location": vc_location
-                    })
-
-            return records
+            return firms[:200]  # Optional limit
         except Exception as e:
-            logging.error(f"Failed to fetch NVCA members: {e}")
+            logging.error(f"NVCA scrape failed: {e}")
             return []
-
