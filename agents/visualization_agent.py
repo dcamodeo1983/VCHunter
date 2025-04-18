@@ -50,4 +50,46 @@ class VisualizationAgent:
             return
 
         n = len(firms)
-        matrix = np.zeros((
+        matrix = np.zeros((n, n))
+        name_to_idx = {name: i for i, name in enumerate(firms)}
+
+        for pair in self.relationship_map.get("co_investment", []):
+            i = name_to_idx.get(pair["firm_a"])
+            j = name_to_idx.get(pair["firm_b"])
+            if i is not None and j is not None:
+                matrix[i][j] = pair["score"]
+                matrix[j][i] = pair["score"]
+
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(matrix, xticklabels=firms, yticklabels=firms, cmap="coolwarm", annot=False)
+        plt.title("VC Relationship Heatmap (Jaccard Co-Investment)")
+        plt.xticks(rotation=90)
+        plt.tight_layout()
+        plt.show()
+
+    def plot_relationship_network(self):
+        edges = self.relationship_map.get("co_investment", [])
+        if not edges:
+            print("🛑 No relationship data to plot network.")
+            return
+
+        G = nx.Graph()
+        for rel in edges:
+            G.add_edge(rel["firm_a"], rel["firm_b"], weight=rel["score"])
+
+        pos = nx.spring_layout(G, k=0.5, seed=42)
+        edge_weights = [G[u][v]['weight'] for u, v in G.edges()]
+
+        plt.figure(figsize=(12, 8))
+        nx.draw_networkx_nodes(G, pos, node_size=500, node_color="skyblue")
+        nx.draw_networkx_edges(G, pos, width=edge_weights, alpha=0.6)
+        nx.draw_networkx_labels(G, pos, font_size=9)
+        plt.title("VC Relationship Network")
+        plt.axis("off")
+        plt.tight_layout()
+        plt.show()
+
+    def run_all(self):
+        self.plot_cluster_bubbles()
+        self.plot_relationship_heatmap()
+        self.plot_relationship_network()
