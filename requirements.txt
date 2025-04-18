@@ -9,4 +9,4 @@ seaborn
 networkx
 pandas
 numpy
-textract
+PyPDF2
