@@ -19,11 +19,11 @@ from agents.relationship_agent import RelationshipAgentV2
 from agents.categorizer_agent import CategorizerAgentV2
 from agents.visualization_agent import VisualizationAgentV2
 from agents.llm_embed_gap_match_chat import (
-    LLMSummarizerAgentV2,
-    EmbedderAgentV2,
-    GapAnalysisAgentV2,
-    FounderMatchAgentV2,
-    ChatbotAgentV2
+    LLMSummarizerAgent,
+    EmbedderAgent,
+    GapAnalysisAgent,
+    FounderMatchAgent,
+    ChatbotAgent
 )
 from agents.nvca_updater_agent import NVCAUpdaterAgentV2
 
