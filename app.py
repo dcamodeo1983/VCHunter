@@ -38,5 +38,44 @@ trigger_nvca = st.checkbox("Re-scrape NVCA Directory", value=False)
 if uploaded_file and run_pipeline:
     with st.spinner("Running full analysis..."):
 
-        # Save uploaded file temporarily
-        with tempfile.NamedTemporaryFile(delete=False)
+        # ✅ FIXED: colon added here
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            tmp_file.write(uploaded_file.read())
+            file_path = tmp_file.name
+
+        # Step 1: Extract founder text
+        reader = FounderDocReaderAgent()
+        founder_text = reader.extract_text(file_path)
+
+        # Step 2: Initialize agents
+        agents = {
+            "nvca": NVCAUpdaterAgentV2(),
+            "scraper": VCWebsiteScraperAgentV2(),
+            "portfolio": PortfolioEnricherAgentV3(),
+            "summarizer": LLMSummarizerAgentV2(api_key=openai.api_key),
+            "embedder": EmbedderAgentV2(api_key=openai.api_key),
+            "categorizer": CategorizerAgentV2(api_key=openai.api_key),
+            "relationship": RelationshipAgentV2,
+            "matcher": FounderMatchAgentV2(),
+            "gap": GapAnalysisAgentV2(),
+            "chatbot": ChatbotAgentV2(api_key=openai.api_key)
+        }
+
+        # Step 3: Run the orchestration pipeline
+        orchestrator = VCHunterOrchestrator(agents)
+        results = orchestrator.run(founder_text=founder_text, trigger_nvca=trigger_nvca)
+
+        st.success("✅ Analysis complete!")
+
+        # === Display outputs ===
+        st.header("🧠 VC Summaries")
+        for summary in results["summaries"]:
+            st.json(summary)
+
+        st.header("🎯 Top VC Matches")
+        st.table(results["matches"])
+
+        st.header("🌌 White Space / Gap Analysis")
+        for gap in results["gaps"]:
+            st.markdown(f"- **{gap['category']}** — Similarity: `{gap['score']:.3f}`")
+            st.caption(gap["insight"])
