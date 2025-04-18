@@ -9,9 +9,9 @@ class VCWebsiteScraperAgentV2:
         self.headers = {"User-Agent": "Mozilla/5.0"}
         self.max_depth = max_depth
         self.max_pages = max_pages
+        self.ignore_domains = ["linkedin.com", "youtube.com", "medium.com", "twitter.com", "facebook.com", "instagram.com"]
 
     def _is_internal(self, link, base):
         return urlparse(link).netloc == urlparse(base).netloc
 
-    def _is_external(self, link, base):
-        return urlparse(link).netloc and urlparse(link).netloc != urlparse
+    def _is_external(self, link,
