@@ -1,6 +1,6 @@
 # 📄 FounderDocReaderAgent – Extract text from uploaded PDF or TXT
-import textract
 import numpy as np
+from PyPDF2 import PdfReader
 
 class FounderDocReaderAgent:
     def __init__(self):
@@ -8,7 +8,8 @@ class FounderDocReaderAgent:
 
     def extract_text(self, file_path: str) -> str:
         try:
-            text = textract.process(file_path).decode('utf-8')
+            reader = PdfReader(file_path)
+            text = "\n".join([page.extract_text() or "" for page in reader.pages])
             return text.strip()
         except Exception as e:
             return f"Error reading file: {e}"
@@ -54,7 +55,6 @@ class VCHunterOrchestrator:
 
         clusters = self.categorizer.categorize(vc_embeddings, vc_names, {n: str(s) for n, s in zip(vc_names, vc_summaries)})
 
-        # Compute centroids for each cluster
         cluster_vectors = {
             cid: np.mean([vc_embeddings[vc_names.index(v)] for v in cluster["members"]], axis=0)
             for cluster in clusters
@@ -63,17 +63,11 @@ class VCHunterOrchestrator:
         centroids = np.stack(list(cluster_vectors.values()))
         labels = list(cluster_vectors.keys())
 
-        # Build relationship map
         rel_agent = self.relationship(vc_to_companies, {name: vec for name, vec in zip(vc_names, vc_embeddings)})
         relationships = rel_agent.analyze()
 
-        # Embed founder doc
         founder_embedding = self.embedder.embed([founder_text])[0]
-
-        # Match founder to top VCs
         matches = self.matcher.match(founder_embedding, vc_embeddings, vc_names, {v: c['cluster_id'] for c in clusters for v in c['members']})
-
-        # Run gap analysis
         gaps = self.gap.detect(founder_embedding, centroids, labels)
 
         return {
