@@ -9,7 +9,7 @@ from agents.founder_doc_reader_and_orchestrator import FounderDocReaderAgent, VC
 if "openai" in st.secrets:
     openai.api_key = st.secrets["openai"]["api_key"]
 else:
-    st.error("❌ OpenAI API key not found. Please set it in Streamlit Cloud → Settings → Secrets.")
+    st.error("❌ OpenAI API key not found. Please add it in Streamlit Cloud → Settings → Secrets.")
     st.stop()
 
 # === Initialize agents ===
@@ -38,7 +38,7 @@ trigger_nvca = st.checkbox("Re-scrape NVCA Directory", value=False)
 if uploaded_file and run_pipeline:
     with st.spinner("Running full analysis..."):
 
-        # ✅ FIXED: colon added here
+        # ✅ CORRECTED LINE
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(uploaded_file.read())
             file_path = tmp_file.name
