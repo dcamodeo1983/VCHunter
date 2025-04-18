@@ -1,35 +1,21 @@
-# 🧠 CategorizerAgentV2 – Merged Advanced Version
 import numpy as np
 from sklearn.cluster import KMeans
-import hdbscan
 from openai import OpenAI
 from collections import defaultdict
 import logging
 
 class CategorizerAgentV2:
-    def __init__(self, api_key: str, method: str = "ensemble", n_clusters: int = 5):
+    def __init__(self, api_key: str, method: str = "kmeans", n_clusters: int = 5):
         self.client = OpenAI(api_key=api_key)
         self.method = method
         self.n_clusters = n_clusters
 
     def cluster_embeddings(self, embeddings: np.ndarray, vc_ids: list) -> dict:
         labels_map = defaultdict(list)
-
-        if self.method == "kmeans":
-            labels = KMeans(n_clusters=self.n_clusters, random_state=42).fit_predict(embeddings)
-        elif self.method == "hdbscan":
-            labels = hdbscan.HDBSCAN(min_cluster_size=2).fit_predict(embeddings)
-        elif self.method == "ensemble":
-            km = KMeans(n_clusters=self.n_clusters, random_state=42).fit_predict(embeddings)
-            hb = hdbscan.HDBSCAN(min_cluster_size=2).fit_predict(embeddings)
-            labels = [h if h != -1 else km[i] for i, h in enumerate(hb)]
-        else:
-            raise ValueError("Invalid clustering method.")
+        labels = KMeans(n_clusters=self.n_clusters, random_state=42).fit_predict(embeddings)
 
         for idx, label in enumerate(labels):
-            if label != -1:
-                labels_map[label].append(vc_ids[idx])
-
+            labels_map[label].append(vc_ids[idx])
         return labels_map
 
     def explain_cluster(self, vc_urls_in_cluster: list, summaries: dict) -> str:
@@ -38,7 +24,7 @@ class CategorizerAgentV2:
         )
 
         prompt = f"""
-These VC firms have been grouped together based on similarity in their investment strategy.
+These VC firms have been grouped together based on similar investment strategy.
 
 For this group, please:
 1. Suggest a name
@@ -50,7 +36,7 @@ Data:
 """
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4",
                 messages=[{"role": "user", "content": prompt}]
             )
             return response.choices[0].message.content.strip()
@@ -71,4 +57,3 @@ Data:
             })
 
         return result
-
