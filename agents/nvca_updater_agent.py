@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import logging
 
-class NVCAUpdaterAgentV2:
+class NVCAUpdaterAgent:
     def __init__(self, nvca_url="https://nvca.org/nvca-members/"):
         self.url = nvca_url
 
@@ -10,6 +10,7 @@ class NVCAUpdaterAgentV2:
         try:
             response = requests.get(self.url, timeout=10)
             response.raise_for_status()
+
             soup = BeautifulSoup(response.text, "html.parser")
             firms = []
 
@@ -19,7 +20,7 @@ class NVCAUpdaterAgentV2:
                 if href and name:
                     firms.append({"name": name, "url": href})
 
-            return firms[:200]  # Optional limit
+            return firms[:200]  # Optional: limit results
         except Exception as e:
             logging.error(f"NVCA scrape failed: {e}")
             return []
