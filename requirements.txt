@@ -1,0 +1,12 @@
+openai
+streamlit
+beautifulsoup4
+tldextract
+faiss-cpu
+scikit-learn
+matplotlib
+seaborn
+networkx
+pandas
+numpy
+textract
