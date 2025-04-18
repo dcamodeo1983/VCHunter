@@ -9,7 +9,7 @@ from agents.founder_doc_reader_and_orchestrator import FounderDocReaderAgent, VC
 if "openai" in st.secrets:
     openai.api_key = st.secrets["openai"]["api_key"]
 else:
-    st.error("❌ OpenAI API key not found in .streamlit/secrets.toml")
+    st.error("❌ OpenAI API key not found. Please set it in Streamlit Cloud → Settings → Secrets.")
     st.stop()
 
 # === Initialize agents ===
@@ -27,6 +27,7 @@ from agents.llm_embed_gap_match_chat import (
 )
 from agents.nvca_updater_agent import NVCAUpdaterAgentV2
 
+# === Streamlit App UI ===
 st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🚀 VC Hunter - Founder Intelligence Explorer")
 
@@ -35,36 +36,7 @@ run_pipeline = st.button("Run VC Intelligence Analysis")
 trigger_nvca = st.checkbox("Re-scrape NVCA Directory", value=False)
 
 if uploaded_file and run_pipeline:
-    with st.spinner("Processing..."):
+    with st.spinner("Running full analysis..."):
 
-        # Save uploaded file to disk temporarily
-        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-            tmp_file.write(uploaded_file.read())
-            file_path = tmp_file.name
-
-        # Step 1: Read the founder file
-        reader = FounderDocReaderAgent()
-        founder_text = reader.extract_text(file_path)
-
-        # Step 2: Initialize agent suite
-        agents = {
-            "nvca": NVCAUpdaterAgentV2(),
-            "scraper": VCWebsiteScraperAgentV2(),
-            "portfolio": PortfolioEnricherAgentV3(),
-            "summarizer": LLMSummarizerAgentV2(api_key=openai.api_key),
-            "embedder": EmbedderAgentV2(api_key=openai.api_key),
-            "categorizer": CategorizerAgentV2(api_key=openai.api_key),
-            "relationship": RelationshipAgentV2,
-            "matcher": FounderMatchAgentV2(),
-            "gap": GapAnalysisAgentV2(),
-            "chatbot": ChatbotAgentV2(api_key=openai.api_key)
-        }
-
-        # Step 3: Run full orchestration
-        orchestrator = VCHunterOrchestrator(agents)
-        results = orchestrator.run(founder_text=founder_text, trigger_nvca=trigger_nvca)
-
-        # Step 4: Display results
-        st.success("Analysis complete!")
-
-        st.header("🧠 VC
+        # Save uploaded file temporarily
+        with tempfile.NamedTemporaryFile(delete=False)
