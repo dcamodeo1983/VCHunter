@@ -1,6 +1,7 @@
 # 📄 FounderDocReaderAgent – Extract text from uploaded PDF or TXT
 import numpy as np
 from PyPDF2 import PdfReader
+import logging
 
 class FounderDocReaderAgent:
     def __init__(self):
@@ -12,7 +13,8 @@ class FounderDocReaderAgent:
             text = "\n".join([page.extract_text() or "" for page in reader.pages])
             return text.strip()
         except Exception as e:
-            return f"Error reading file: {e}"
+            logging.error(f"Error reading uploaded file: {e}")
+            return ""
 
 
 # 🔁 VCHunterOrchestrator – Connects All Agents for Full Workflow
@@ -30,7 +32,6 @@ class VCHunterOrchestrator:
         self.chatbot = agents['chatbot']
 
     def run(self, founder_text: str, trigger_nvca=False):
-        # Step 1: Pull or load VC list
         vc_list = self.nvca_updater.fetch_vc_records() if trigger_nvca else []
 
         vc_summaries = []
@@ -50,25 +51,63 @@ class VCHunterOrchestrator:
             vc_portfolios[vc['name']] = merged_portfolio
             vc_to_companies[vc['name']] = result['portfolio_links']
 
+        if not vc_summaries:
+            return {
+                "summaries": [],
+                "clusters": [],
+                "relationships": {},
+                "matches": [],
+                "gaps": []
+            }
+
         texts = [str(s) for s in vc_summaries]
         vc_embeddings = self.embedder.embed(texts)
 
-        clusters = self.categorizer.categorize(vc_embeddings, vc_names, {n: str(s) for n, s in zip(vc_names, vc_summaries)})
+        if len(vc_embeddings) == 0:
+            return {
+                "summaries": vc_summaries,
+                "clusters": [],
+                "relationships": {},
+                "matches": [],
+                "gaps": []
+            }
+
+        clusters = self.categorizer.categorize(vc_embeddings, vc_names, {
+            n: str(s) for n, s in zip(vc_names, vc_summaries)
+        })
 
         cluster_vectors = {
             cid: np.mean([vc_embeddings[vc_names.index(v)] for v in cluster["members"]], axis=0)
             for cluster in clusters
             for cid in [cluster["cluster_id"]]
         }
-        centroids = np.stack(list(cluster_vectors.values()))
+        centroids = np.stack(list(cluster_vectors.values())) if cluster_vectors else np.array([])
         labels = list(cluster_vectors.keys())
 
         rel_agent = self.relationship(vc_to_companies, {name: vec for name, vec in zip(vc_names, vc_embeddings)})
         relationships = rel_agent.analyze()
 
-        founder_embedding = self.embedder.embed([founder_text])[0]
-        matches = self.matcher.match(founder_embedding, vc_embeddings, vc_names, {v: c['cluster_id'] for c in clusters for v in c['members']})
-        gaps = self.gap.detect(founder_embedding, centroids, labels)
+        founder_vectors = self.embedder.embed([founder_text])
+        if not founder_vectors:
+            logging.warning("❌ Founder embedding failed — skipping matches and gaps.")
+            return {
+                "summaries": vc_summaries,
+                "clusters": clusters,
+                "relationships": relationships,
+                "matches": [],
+                "gaps": []
+            }
+
+        founder_embedding = founder_vectors[0]
+
+        matches = self.matcher.match(
+            founder_embedding,
+            vc_embeddings,
+            vc_names,
+            {v: c['cluster_id'] for c in clusters for v in c['members']}
+        )
+
+        gaps = self.gap.detect(founder_embedding, centroids, labels) if len(centroids) > 0 else []
 
         return {
             "summaries": vc_summaries,
