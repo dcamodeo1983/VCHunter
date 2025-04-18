@@ -8,11 +8,17 @@ class CategorizerAgentV2:
     def __init__(self, api_key: str, method: str = "kmeans", n_clusters: int = 5):
         self.client = OpenAI(api_key=api_key)
         self.method = method
-        self.n_clusters = n_clusters
+        self.default_n_clusters = n_clusters
 
     def cluster_embeddings(self, embeddings: np.ndarray, vc_ids: list) -> dict:
         labels_map = defaultdict(list)
-        labels = KMeans(n_clusters=self.n_clusters, random_state=42).fit_predict(embeddings)
+
+        if len(vc_ids) < 2:
+            logging.warning("Too few VCs to cluster — skipping clustering.")
+            return {0: vc_ids}
+
+        n_clusters = min(self.default_n_clusters, len(vc_ids))
+        labels = KMeans(n_clusters=n_clusters, random_state=42).fit_predict(embeddings)
 
         for idx, label in enumerate(labels):
             labels_map[label].append(vc_ids[idx])
@@ -24,12 +30,12 @@ class CategorizerAgentV2:
         )
 
         prompt = f"""
-These VC firms have been grouped together based on similar investment strategy.
+These VC firms have been grouped together based on similar investment behavior.
 
-For this group, please:
-1. Suggest a name
-2. Describe common strategies, themes, or founder preferences
-3. List the VC firm URLs
+Please:
+1. Suggest a category name
+2. Summarize their common strategy or themes
+3. Identify shared founder preferences
 
 Data:
 {joined_summaries}
@@ -45,6 +51,10 @@ Data:
             return "(Explanation failed)"
 
     def categorize(self, embeddings: np.ndarray, vc_ids: list, summaries: dict) -> list:
+        if len(vc_ids) < 2:
+            logging.warning("Fewer than 2 VC profiles available — categorization skipped.")
+            return [{"cluster_id": 0, "members": vc_ids, "description": "Single cluster: All available VCs"}]
+
         clusters = self.cluster_embeddings(embeddings, vc_ids)
         result = []
 
