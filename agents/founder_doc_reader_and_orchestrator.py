@@ -1,5 +1,6 @@
 # 📄 FounderDocReaderAgent – Extract text from uploaded PDF or TXT
 import textract
+import numpy as np
 
 class FounderDocReaderAgent:
     def __init__(self):
@@ -35,6 +36,7 @@ class VCHunterOrchestrator:
         vc_names = []
         vc_embeddings = []
         vc_portfolios = {}
+        vc_to_companies = {}
 
         for vc in vc_list:
             result = self.scraper.scrape(vc['url'])
@@ -44,17 +46,35 @@ class VCHunterOrchestrator:
             summary = self.summarizer.summarize(" ".join(result['site_text'].values()), merged_portfolio)
             vc_summaries.append(summary)
             vc_names.append(vc['name'])
+            vc_portfolios[vc['name']] = merged_portfolio
+            vc_to_companies[vc['name']] = result['portfolio_links']
 
         texts = [str(s) for s in vc_summaries]
-        embeddings = self.embedder.embed(texts)
-        vc_embeddings = embeddings
+        vc_embeddings = self.embedder.embed(texts)
 
         clusters = self.categorizer.categorize(vc_embeddings, vc_names, {n: str(s) for n, s in zip(vc_names, vc_summaries)})
-        relationships = self.relationship.analyze(vc_embeddings)
 
+        # Compute centroids for each cluster
+        cluster_vectors = {
+            cid: np.mean([vc_embeddings[vc_names.index(v)] for v in cluster["members"]], axis=0)
+            for cluster in clusters
+            for cid in [cluster["cluster_id"]]
+        }
+        centroids = np.stack(list(cluster_vectors.values()))
+        labels = list(cluster_vectors.keys())
+
+        # Build relationship map
+        rel_agent = self.relationship(vc_to_companies, {name: vec for name, vec in zip(vc_names, vc_embeddings)})
+        relationships = rel_agent.analyze()
+
+        # Embed founder doc
         founder_embedding = self.embedder.embed([founder_text])[0]
+
+        # Match founder to top VCs
         matches = self.matcher.match(founder_embedding, vc_embeddings, vc_names, {v: c['cluster_id'] for c in clusters for v in c['members']})
-        gaps = self.gap.detect(founder_embedding, embeddings, vc_names)
+
+        # Run gap analysis
+        gaps = self.gap.detect(founder_embedding, centroids, labels)
 
         return {
             "summaries": vc_summaries,
@@ -63,4 +83,3 @@ class VCHunterOrchestrator:
             "matches": matches,
             "gaps": gaps
         }
-
