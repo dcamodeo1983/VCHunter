@@ -1,12 +1,16 @@
 import streamlit as st
+import openai
 import os
 import tempfile
 
 from agents.founder_doc_reader_and_orchestrator import FounderDocReaderAgent, VCHunterOrchestrator
 
-# === OpenAI API Key from Streamlit secrets ===
-import openai
-openai.api_key = st.secrets["openai"]["api_key"]
+# === Load OpenAI API key ===
+if "openai" in st.secrets:
+    openai.api_key = st.secrets["openai"]["api_key"]
+else:
+    st.error("❌ OpenAI API key not found in .streamlit/secrets.toml")
+    st.stop()
 
 # === Initialize agents ===
 from agents.website_scraper_agent import VCWebsiteScraperAgentV2
@@ -23,7 +27,6 @@ from agents.llm_embed_gap_match_chat import (
 )
 from agents.nvca_updater_agent import NVCAUpdaterAgentV2
 
-# === Streamlit App UI ===
 st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🚀 VC Hunter - Founder Intelligence Explorer")
 
@@ -34,16 +37,16 @@ trigger_nvca = st.checkbox("Re-scrape NVCA Directory", value=False)
 if uploaded_file and run_pipeline:
     with st.spinner("Processing..."):
 
-        # Save uploaded file to a temp location
+        # Save uploaded file to disk temporarily
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(uploaded_file.read())
             file_path = tmp_file.name
 
-        # Extract text from file
+        # Step 1: Read the founder file
         reader = FounderDocReaderAgent()
         founder_text = reader.extract_text(file_path)
 
-        # Initialize all agents
+        # Step 2: Initialize agent suite
         agents = {
             "nvca": NVCAUpdaterAgentV2(),
             "scraper": VCWebsiteScraperAgentV2(),
@@ -57,20 +60,11 @@ if uploaded_file and run_pipeline:
             "chatbot": ChatbotAgentV2(api_key=openai.api_key)
         }
 
+        # Step 3: Run full orchestration
         orchestrator = VCHunterOrchestrator(agents)
         results = orchestrator.run(founder_text=founder_text, trigger_nvca=trigger_nvca)
 
-        # === Display Results ===
+        # Step 4: Display results
         st.success("Analysis complete!")
 
-        st.header("🧠 Summaries")
-        for summary in results["summaries"]:
-            st.json(summary)
-
-        st.header("🎯 Top VC Matches")
-        st.table(results["matches"])
-
-        st.header("🌌 Opportunity Gaps")
-        for gap in results["gaps"]:
-            st.markdown(f"- **{gap['category']}** — Similarity: `{gap['score']:.3f}`")
-            st.caption(gap["insight"])
+        st.header("🧠 VC
