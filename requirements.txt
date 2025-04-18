@@ -1,7 +1,8 @@
-openai
 streamlit
+openai
 beautifulsoup4
 tldextract
+requests
 faiss-cpu
 scikit-learn
 matplotlib
@@ -9,4 +10,5 @@ seaborn
 networkx
 pandas
 numpy
+hdbscan
 PyPDF2
