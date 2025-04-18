@@ -3,31 +3,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import logging
 
-
-# 🔡 Embedding Agent
-class EmbedderAgent:
-    def __init__(self, api_key: str, model: str = "text-embedding-ada-002"):
-        self.client = OpenAI(api_key=api_key)
-        self.model = model
-
-    def embed(self, texts):
-        try:
-            response = self.client.embeddings.create(
-                input=texts,
-                model=self.model
-            )
-            return [d.embedding for d in response.data]
-        except Exception as e:
-            logging.error(f"Embedding failed: {e}")
-            return []
-
-
-# 🧠 Summarization Agent
+# 🧠 Summarizer Agent
 class LLMSummarizerAgent:
     def __init__(self, api_key: str):
         self.client = OpenAI(api_key=api_key)
 
-    def summarize(self, site_text: str, portfolio_text: str):
+    def summarize(self, site_text: str, portfolio_text: str) -> str:
         prompt = f"""
 You are an expert in venture capital intelligence.
 
@@ -55,7 +36,25 @@ Analyze the following VC firm information and return:
             return "(Summary unavailable)"
 
 
-# 🔍 Matching Agent
+# 🔡 Embedding Agent
+class EmbedderAgent:
+    def __init__(self, api_key: str, model: str = "text-embedding-ada-002"):
+        self.client = OpenAI(api_key=api_key)
+        self.model = model
+
+    def embed(self, texts: list[str]) -> list:
+        try:
+            response = self.client.embeddings.create(
+                input=texts,
+                model=self.model
+            )
+            return [d.embedding for d in response.data]
+        except Exception as e:
+            logging.error(f"Embedding failed: {e}")
+            return []
+
+
+# 🎯 Match Agent
 class FounderMatchAgent:
     def __init__(self):
         pass
@@ -71,3 +70,65 @@ class FounderMatchAgent:
         try:
             sims = cosine_similarity(
                 founder_embedding.reshape(1, -1),
+                vc_embeddings
+            ).flatten()
+        except Exception as e:
+            return [{
+                "name": "(Similarity failed)",
+                "score": 0.0,
+                "cluster": None,
+                "error": str(e)
+            }]
+
+        top_matches = sorted(
+            zip(vc_names, sims),
+            key=lambda x: x[1],
+            reverse=True
+        )[:5]
+
+        return [{
+            "name": name,
+            "score": float(score),
+            "cluster": vc_to_cluster.get(name, None)
+        } for name, score in top_matches]
+
+
+# 🌌 Gap Analysis Agent
+class GapAnalysisAgent:
+    def __init__(self):
+        pass
+
+    def detect(self, founder_embedding, centroids, labels):
+        if founder_embedding is None or len(centroids) == 0:
+            return []
+
+        try:
+            sims = cosine_similarity(founder_embedding.reshape(1, -1), centroids).flatten()
+        except Exception as e:
+            return [{"category": "Error", "score": 0.0, "insight": str(e)}]
+
+        ranked = sorted(zip(labels, sims), key=lambda x: x[1])
+        insights = [{
+            "category": label,
+            "score": float(score),
+            "insight": f"This category is underrepresented in your VC match profile (score: {score:.2f})"
+        } for label, score in ranked[:3]]
+
+        return insights
+
+
+# 🤖 Chatbot Agent (Optional interactive mode)
+class ChatbotAgent:
+    def __init__(self, api_key: str):
+        self.client = OpenAI(api_key=api_key)
+
+    def chat(self, messages: list[dict]) -> str:
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=messages
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            logging.error(f"Chatbot failed: {e}")
+            return "(Chat unavailable)"
