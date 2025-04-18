@@ -10,5 +10,4 @@ seaborn
 networkx
 pandas
 numpy
-hdbscan
 PyPDF2
