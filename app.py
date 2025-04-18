@@ -38,7 +38,7 @@ trigger_nvca = st.checkbox("Re-scrape NVCA Directory", value=False)
 if uploaded_file and run_pipeline:
     with st.spinner("Running full analysis..."):
 
-        # ✅ CORRECTED LINE
+        # ✅ FIXED LINE
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(uploaded_file.read())
             file_path = tmp_file.name
@@ -63,12 +63,16 @@ if uploaded_file and run_pipeline:
 
         # Step 3: Run the orchestration pipeline
         orchestrator = VCHunterOrchestrator(agents)
+
+        # ✅ Optional live preview
+        st.info("📡 Running agent pipeline...")
         results = orchestrator.run(founder_text=founder_text, trigger_nvca=trigger_nvca)
 
         st.success("✅ Analysis complete!")
 
         # === Display outputs ===
         st.header("🧠 VC Summaries")
+        st.write(f"Processed {len(results['summaries'])} VC profiles.")
         for summary in results["summaries"]:
             st.json(summary)
 
