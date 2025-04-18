@@ -6,7 +6,7 @@ import pandas as pd
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import LabelEncoder
 
-class VisualizationAgentV2:
+class VisualizationAgent:
     def __init__(self, embeddings, vc_to_cluster, cluster_descriptions, vc_data, relationship_map):
         self.embeddings = embeddings
         self.vc_to_cluster = vc_to_cluster
@@ -37,8 +37,8 @@ class VisualizationAgentV2:
         plt.figure(figsize=(10, 7))
         sns.scatterplot(data=df, x="x", y="y", hue="cluster", s=200, alpha=0.8)
         for i in range(len(df)):
-            plt.text(df.x[i], df.y[i], df.vc[i][:10], fontsize=8)
-        plt.title("VC Landscape (t-SNE Embedding)")
+            plt.text(df.x[i], df.y[i], df.vc[i][:12], fontsize=8)
+        plt.title("VC Landscape (t-SNE Projection)")
         plt.grid(True)
         plt.tight_layout()
         plt.show()
@@ -46,50 +46,8 @@ class VisualizationAgentV2:
     def plot_relationship_heatmap(self):
         firms = list(self.vc_data.keys())
         if not firms:
-            print("🛑 No firms to plot heatmap.")
+            print("🛑 No firm data available for heatmap.")
             return
 
         n = len(firms)
-        matrix = np.zeros((n, n))
-        name_to_idx = {name: i for i, name in enumerate(firms)}
-
-        for pair in self.relationship_map.get("co_investment", []):
-            i = name_to_idx.get(pair["firm_a"])
-            j = name_to_idx.get(pair["firm_b"])
-            if i is not None and j is not None:
-                matrix[i][j] = pair["score"]
-                matrix[j][i] = pair["score"]
-
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(matrix, xticklabels=firms, yticklabels=firms, cmap="coolwarm", annot=False)
-        plt.title("VC Relationship Heatmap (Co-Investment Similarity)")
-        plt.xticks(rotation=90)
-        plt.tight_layout()
-        plt.show()
-
-    def plot_relationship_network(self):
-        edges = self.relationship_map.get("co_investment", [])
-        if not edges:
-            print("🛑 No relationship data to plot network.")
-            return
-
-        G = nx.Graph()
-        for rel in edges:
-            G.add_edge(rel["firm_a"], rel["firm_b"], weight=rel["score"])
-
-        pos = nx.spring_layout(G, k=0.5, seed=42)
-        edge_weights = [G[u][v]['weight'] for u, v in G.edges()]
-
-        plt.figure(figsize=(12, 8))
-        nx.draw_networkx_nodes(G, pos, node_size=500, node_color="skyblue")
-        nx.draw_networkx_edges(G, pos, width=edge_weights, alpha=0.6)
-        nx.draw_networkx_labels(G, pos, font_size=9)
-        plt.title("VC Relationship Graph")
-        plt.axis("off")
-        plt.tight_layout()
-        plt.show()
-
-    def run_all(self):
-        self.plot_cluster_bubbles()
-        self.plot_relationship_heatmap()
-        self.plot_relationship_network()
+        matrix = np.zeros((
