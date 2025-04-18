@@ -1,33 +1,32 @@
-# 🏢 PortfolioEnricherAgentV3 – Fully Automated from Detected Links
 import requests
 from bs4 import BeautifulSoup
 import time
+import logging
 
 class PortfolioEnricherAgentV3:
-    def __init__(self, delay=1.0):
+    def __init__(self, limit=10):
+        self.limit = limit
         self.session = requests.Session()
         self.headers = {"User-Agent": "Mozilla/5.0"}
-        self.delay = delay
 
-    def _extract_visible_text(self, html):
+    def extract_visible_text(self, html):
         soup = BeautifulSoup(html, "html.parser")
         for tag in soup(["script", "style", "noscript"]):
             tag.decompose()
         return " ".join(soup.stripped_strings)
 
-    def enrich(self, portfolio_urls):
-        data = {}
-        for url in set(portfolio_urls):
+    def enrich(self, links):
+        company_data = {}
+        for url in list(set(links))[:self.limit]:
             try:
-                res = self.session.get(url, headers=self.headers, timeout=10)
-                if res.status_code == 200:
-                    text = self._extract_visible_text(res.text)[:8000]
-                    data[url] = text
-                    print(f"✅ {url} – {len(text)} chars")
+                r = self.session.get(url, timeout=10, headers=self.headers)
+                if r.status_code == 200:
+                    text = self.extract_visible_text(r.text)
+                    company_data[url] = text[:8000]  # Clip long pages
+                    logging.info(f"✅ Scraped {url}")
                 else:
-                    print(f"⚠️ {url} returned {res.status_code}")
+                    logging.warning(f"⚠️ {url} returned {r.status_code}")
             except Exception as e:
-                print(f"❌ Failed to scrape {url}: {e}")
-            time.sleep(self.delay)
-        return data
-# Real content from PortfolioEnricherAgentV3
+                logging.error(f"❌ Failed to scrape {url}: {e}")
+            time.sleep(1)  # Rate limit
+        return company_data
