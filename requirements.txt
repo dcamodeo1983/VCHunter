@@ -11,3 +11,5 @@ networkx
 pandas
 numpy
 PyPDF2
+hdbscan
+python-dateutil
