@@ -48,9 +48,13 @@ if uploaded_pitch and run_pipeline:
                 vc_aggregator.add_csv_vcs(csv_path)
 
         vc_list = vc_aggregator.fetch_vc_records()
+
         st.subheader("🔍 VC List Loaded")
-        st.write(f"Loaded {len(vc_list)} VC records")
-        st.dataframe(vc_list[:5] if vc_list else "⚠️ No VC records loaded!")
+        if vc_list:
+            st.write(f"Loaded {len(vc_list)} VC records")
+            st.dataframe(vc_list[:5])
+        else:
+            st.warning("⚠️ No VC records loaded! Check your CSV or GitHub source.")
 
         agents = {
             "nvca": vc_aggregator,
