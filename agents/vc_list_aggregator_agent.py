@@ -10,24 +10,23 @@ class VCListAggregatorAgent:
             "https://raw.githubusercontent.com/lvdt/vc-list/main/vc.json",
             "https://raw.githubusercontent.com/QuantifiedBob/awesome-venture-capital/main/README.md"
         ]
-        self.allowed_suffix = "com"
-        self.excluded_keywords = [
-            "europe", "germany", "france", "asia", "china", "india", "africa",
-            "canada", "latam", "euro", "hk", "israel", "global", "mena"
-        ]
         self.uploaded_vcs = []
 
     def add_csv_vcs(self, csv_path):
         try:
             df = pd.read_csv(csv_path)
             print(f"📥 Uploaded CSV has {len(df)} rows")
+
             for _, row in df.iterrows():
                 name = str(row.get("name", "")).strip()
                 url = str(row.get("url", "")).strip()
                 domain = self._clean_domain(url)
-                if self._is_us_based(name, domain):
+                if name and url and domain:
                     self.uploaded_vcs.append({"name": name or domain, "url": url})
-            print(f"✅ Accepted {len(self.uploaded_vcs)} U.S.-based VCs from CSV")
+                    print(f"✅ Accepted from CSV: {name} — {url}")
+
+            print(f"📦 Final CSV records accepted: {len(self.uploaded_vcs)}")
+
         except Exception as e:
             logging.warning(f"⚠️ Failed to parse uploaded CSV: {e}")
 
@@ -36,7 +35,7 @@ class VCListAggregatorAgent:
 
         for url in self.sources:
             try:
-                print(f"📡 Scraping {url}")
+                print(f"🌐 Scraping {url}")
                 if url.endswith(".json"):
                     res = requests.get(url, timeout=10)
                     vc_data = res.json()
@@ -44,7 +43,7 @@ class VCListAggregatorAgent:
                         name = vc.get("name", "").strip()
                         link = vc.get("url", "").strip()
                         domain = self._clean_domain(link)
-                        if self._is_us_based(name, domain):
+                        if name and link and domain:
                             all_links[domain] = {"name": name or domain, "url": link}
 
                 elif url.endswith(".md"):
@@ -57,8 +56,9 @@ class VCListAggregatorAgent:
                             name = line.split("](")[0].replace("* [", "").strip()
                             link = line.split("](")[1].replace(")", "").strip()
                             domain = self._clean_domain(link)
-                            if self._is_us_based(name, domain):
+                            if name and link and domain:
                                 all_links[domain] = {"name": name or domain, "url": link}
+
             except Exception as e:
                 logging.warning(f"⚠️ Failed to fetch from {url}: {e}")
 
@@ -78,10 +78,6 @@ class VCListAggregatorAgent:
         except Exception:
             return None
 
+    # 🔁 Temporarily allow all VCs through
     def _is_us_based(self, name, domain):
-        if not domain or not name:
-            return False
-        if not domain.endswith(self.allowed_suffix):
-            return False
-        lower_name = name.lower()
-        return not any(keyword in lower_name for keyword in self.excluded_keywords)
+        return True
