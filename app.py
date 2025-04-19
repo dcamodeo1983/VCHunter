@@ -1,18 +1,9 @@
 import streamlit as st
 import openai
-import os
 import tempfile
 
+from agents.vc_list_aggregator_agent import VCListAggregatorAgent
 from agents.founder_doc_reader_and_orchestrator import FounderDocReaderAgent, VCHunterOrchestrator
-
-# === Load OpenAI API key ===
-if "openai" in st.secrets:
-    openai.api_key = st.secrets["openai"]["api_key"]
-else:
-    st.error("❌ OpenAI API key not found. Please set it in Streamlit Cloud → Settings → Secrets.")
-    st.stop()
-
-# === Import Agent Classes ===
 from agents.website_scraper_agent import VCWebsiteScraperAgent
 from agents.portfolio_enricher_agent import PortfolioEnricherAgent
 from agents.relationship_agent import RelationshipAgent
@@ -25,31 +16,42 @@ from agents.llm_embed_gap_match_chat import (
     FounderMatchAgent,
     ChatbotAgent
 )
-from agents.nvca_updater_agent import NVCAUpdaterAgent
 
-# === Streamlit App UI ===
+# === Load OpenAI API key ===
+if "openai" in st.secrets:
+    openai.api_key = st.secrets["openai"]["api_key"]
+else:
+    st.error("❌ OpenAI API key not found. Please set it in Streamlit → Settings → Secrets.")
+    st.stop()
+
+# === Streamlit UI ===
 st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🚀 VC Hunter - Founder Intelligence Explorer")
 
-uploaded_file = st.file_uploader("Upload your one-pager (TXT or PDF)", type=["txt", "pdf"])
+uploaded_pitch = st.file_uploader("Upload your one-pager (TXT or PDF)", type=["txt", "pdf"])
+uploaded_csv = st.file_uploader("Upload optional CSV of VC URLs", type=["csv"])
 run_pipeline = st.button("Run VC Intelligence Analysis")
-trigger_nvca = st.checkbox("Re-scrape NVCA Directory", value=False)
+trigger_nvca = st.checkbox("Enable GitHub VC List Scraping", value=True)
 
-if uploaded_file and run_pipeline:
+if uploaded_pitch and run_pipeline:
     with st.spinner("Running full analysis..."):
 
-        # Save uploaded file temporarily
+        # === Save uploaded files ===
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-            tmp_file.write(uploaded_file.read())
-            file_path = tmp_file.name
+            tmp_file.write(uploaded_pitch.read())
+            pitch_path = tmp_file.name
 
-        # Step 1: Extract founder text
-        reader = FounderDocReaderAgent()
-        founder_text = reader.extract_text(file_path)
+        # === Setup VC list aggregator ===
+        vc_aggregator = VCListAggregatorAgent()
+        if uploaded_csv is not None:
+            with tempfile.NamedTemporaryFile(delete=False) as csv_tmp:
+                csv_tmp.write(uploaded_csv.read())
+                csv_path = csv_tmp.name
+                vc_aggregator.add_csv_vcs(csv_path)
 
-        # Step 2: Initialize agents
+        # === Initialize all agents ===
         agents = {
-            "nvca": NVCAUpdaterAgent(),
+            "nvca": vc_aggregator,
             "scraper": VCWebsiteScraperAgent(),
             "portfolio": PortfolioEnricherAgent(),
             "summarizer": LLMSummarizerAgent(api_key=openai.api_key),
@@ -61,15 +63,15 @@ if uploaded_file and run_pipeline:
             "chatbot": ChatbotAgent(api_key=openai.api_key)
         }
 
-        # Step 3: Run full pipeline
+        reader = FounderDocReaderAgent()
+        founder_text = reader.extract_text(pitch_path)
+
         orchestrator = VCHunterOrchestrator(agents)
         results = orchestrator.run(founder_text=founder_text, trigger_nvca=trigger_nvca)
 
         st.success("✅ Analysis complete!")
 
-        # === Display outputs ===
         st.header("🧠 VC Summaries")
-        st.write(f"Processed {len(results['summaries'])} VC profiles.")
         for summary in results["summaries"]:
             st.json(summary)
 
