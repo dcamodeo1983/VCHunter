@@ -20,6 +20,7 @@ class VCListAggregatorAgent:
     def add_csv_vcs(self, csv_path):
         try:
             df = pd.read_csv(csv_path)
+            print(f"📥 Uploaded CSV has {len(df)} rows")
             for _, row in df.iterrows():
                 name = str(row.get("name", "")).strip()
                 url = str(row.get("url", "")).strip()
@@ -38,6 +39,7 @@ class VCListAggregatorAgent:
                 if url.endswith(".json"):
                     res = requests.get(url, timeout=10)
                     vc_data = res.json()
+                    print(f"📊 Found {len(vc_data)} records in JSON")
                     for vc in vc_data:
                         name = vc.get("name", "").strip()
                         link = vc.get("url", "").strip()
@@ -50,6 +52,7 @@ class VCListAggregatorAgent:
                     soup = BeautifulSoup(res.text, "html.parser")
                     text = soup.get_text()
                     lines = text.split("\n")
+                    count = 0
                     for line in lines:
                         if "http" in line and "](" in line:
                             name = line.split("](")[0].replace("* [", "").strip()
@@ -57,7 +60,8 @@ class VCListAggregatorAgent:
                             domain = self._clean_domain(link)
                             if self._is_us_based(name, domain):
                                 all_links[domain] = {"name": name or domain, "url": link}
-
+                                count += 1
+                    print(f"📝 Found {count} records in Markdown")
             except Exception as e:
                 logging.warning(f"⚠️ Failed to fetch from {url}: {e}")
 
@@ -66,6 +70,7 @@ class VCListAggregatorAgent:
             if domain and domain not in all_links:
                 all_links[domain] = firm
 
+        print(f"✅ Final VC list: {len(all_links)} records")
         return list(all_links.values())
 
     def _clean_domain(self, url):
