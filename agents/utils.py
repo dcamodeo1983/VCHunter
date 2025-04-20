@@ -1,8 +1,23 @@
-# 🛠️ utils.py – Shared Utility Functions
+# utils.py — Common utility functions
 
-def safe_truncate(text: str, max_tokens: int = 8000) -> str:
-    """Truncates a string to a safe token limit for LLMs."""
-    return text[:max_tokens]
+import re
+import unicodedata
 
-# Add additional utilities as needed
-# Placeholder for shared utility functions
+
+def clean_text(text: str) -> str:
+    """
+    Normalize and clean up text for more consistent processing.
+    """
+    if not text:
+        return ""
+
+    text = unicodedata.normalize("NFKD", text)
+    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'[^\x00-\x7F]+', '', text)  # Remove non-ASCII characters
+    return text.strip()
+
+
+def jaccard_similarity(set1, set2):
+    intersection = set1.intersection(set2)
+    union = set1.union(set2)
+    return len(intersection) / len(union) if union else 0
