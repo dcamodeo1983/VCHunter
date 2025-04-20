@@ -19,7 +19,6 @@ from agents.founder_doc_reader_and_orchestrator import FounderDocReaderAgent, VC
 st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🚀 VC Hunter - Founder Intelligence Explorer")
 
-# ✅ Load OpenAI API key from Streamlit secrets
 if "openai_api_key" not in st.secrets or not st.secrets["openai_api_key"]:
     st.error("❌ Missing OpenAI API key. Please set it in Streamlit → Settings → Secrets → openai_api_key.")
     st.stop()
@@ -27,13 +26,9 @@ if "openai_api_key" not in st.secrets or not st.secrets["openai_api_key"]:
 api_key = st.secrets["openai_api_key"]
 st.success("✅ OpenAI key loaded successfully.")
 
-# === File upload ===
 uploaded_file = st.file_uploader("Upload your one-pager (TXT or PDF)", type=["txt", "pdf"])
-
-# === Optional refresh flag ===
 trigger_nvca = st.checkbox("🔄 Refresh VC list from GitHub and Dealroom sources")
 
-# === Initialize agents ===
 nvca_agent = VCListAggregatorAgent()
 scraper_agent = VCWebsiteScraperAgent()
 portfolio_agent = PortfolioEnricherAgent()
@@ -56,11 +51,10 @@ agents = {
     "matcher": matcher_agent,
     "chatbot": chatbot_agent,
     "categorizer": categorizer_agent,
-    "relationship": RelationshipAgent,
+    "relationship": RelationshipAgent,  # ✅ fixed key and removed bad instantiation
     "visualizer": visualizer_agent
 }
 
-# === Run Pipeline ===
 if uploaded_file:
     with st.spinner("⏳ Running analysis..."):
         try:
