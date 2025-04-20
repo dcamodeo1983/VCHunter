@@ -1,3 +1,5 @@
+import agents.llm_embed_gap_match_chat as test_mod
+print(dir(test_mod))  # Will print available names in the module
 import streamlit as st
 import tempfile
 import openai
