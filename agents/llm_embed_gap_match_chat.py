@@ -54,7 +54,7 @@ Text:
         except Exception as e:
             logging.error(f"Founder summarization failed: {e}")
             return "⚠️ Error summarizing founder document."
-        
+
 
 # 📐 Embedder Agent
 class EmbedderAgent:
