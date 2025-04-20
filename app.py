@@ -64,7 +64,7 @@ if uploaded_file:
         'matcher': matcher_agent,
         'chatbot': chatbot_agent,
         'categorizer': categorizer_agent,
-        relationship': RelationshipAgent,
+        'relationship': RelationshipAgent,
         'visualizer': visualizer_agent,
     }
 
