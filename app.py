@@ -18,6 +18,19 @@ from agents.founder_doc_reader_and_orchestrator import FounderDocReaderAgent, VC
 st.set_page_config(page_title="VC Hunter", layout="wide")
 
 st.title("🚀 VC Hunter - Founder Intelligence Explorer")
+import openai
+import streamlit as st
+
+# Load API Key
+api_key = st.secrets.get("openai_api_key")
+openai.api_key = api_key
+
+# Debug output to confirm secret loading
+if not api_key:
+    st.error("❌ OpenAI key not found in secrets.")
+    st.stop()
+else:
+    st.success("✅ OpenAI key loaded successfully.")
 
 # === Load OpenAI API key ===
 # === Load OpenAI API key from Streamlit secrets ===
