@@ -1,4 +1,3 @@
-# 🔁 Force recommit to refresh Streamlit
 import openai
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -139,7 +138,7 @@ class SimpleChatResponder:
             return "⚠️ Error answering your question."
 
 
-# Optional export guard
+# ✅ Explicit exports (not strictly required, but safe)
 __all__ = [
     "LLMSummarizerAgent",
     "EmbedderAgent",
