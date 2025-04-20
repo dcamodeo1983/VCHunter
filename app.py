@@ -42,7 +42,7 @@ gap_agent = GapAnalysisAgent()
 matcher_agent = FounderMatchAgent()
 chatbot_agent = ChatbotAgent(api_key=openai.api_key)
 categorizer_agent = CategorizerAgent(api_key=openai.api_key)
-relationship_agent = RelationshipAgent()
+#relationship_agent = RelationshipAgent()
 visualizer_agent = VisualizationAgent()
 reader_agent = FounderDocReaderAgent()
 
