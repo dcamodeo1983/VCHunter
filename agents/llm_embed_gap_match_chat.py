@@ -1,6 +1,7 @@
+import os
 import numpy as np
-from openai import OpenAI
 import logging
+from openai import OpenAI
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,7 +38,6 @@ class LLMSummarizerAgent:
             logging.error(f"Summarization failed: {e}")
             return ""
 
-
 class EmbedderAgent:
     def __init__(self, api_key):
         self.client = OpenAI(api_key=api_key)
@@ -52,7 +52,6 @@ class EmbedderAgent:
         except Exception as e:
             logging.error(f"Embedding failed: {e}")
             return []
-
 
 class GapAnalysisAgent:
     def detect(self, founder_vector, cluster_vectors, labels):
@@ -71,7 +70,6 @@ class GapAnalysisAgent:
 
         return gaps
 
-
 class FounderMatchAgent:
     def match(self, founder_vec, vc_vecs, vc_names, cluster_map):
         from sklearn.metrics.pairwise import cosine_similarity
@@ -88,7 +86,6 @@ class FounderMatchAgent:
             })
 
         return matches
-
 
 class ChatbotAgent:
     def __init__(self, api_key):
