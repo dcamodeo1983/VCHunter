@@ -1,6 +1,5 @@
 import os
 import streamlit as st
-import openai
 
 from agents.vc_list_aggregator_agent import VCListAggregatorAgent
 from agents.website_scraper_agent import VCWebsiteScraperAgent
@@ -26,12 +25,10 @@ if "openai_api_key" not in st.secrets or not st.secrets["openai_api_key"]:
     st.stop()
 
 api_key = st.secrets["openai_api_key"]
-openai.api_key = api_key
 st.success("✅ OpenAI key loaded successfully.")
 
 # === File upload ===
 uploaded_file = st.file_uploader("Upload your one-pager (TXT or PDF)", type=["txt", "pdf"])
-csv_file = st.file_uploader("Upload VC URLs (CSV with 'url' column)", type="csv")
 
 # === Optional refresh flag ===
 trigger_nvca = st.checkbox("🔄 Refresh VC list from GitHub and Dealroom sources")
@@ -59,6 +56,7 @@ agents = {
     "matcher": matcher_agent,
     "chatbot": chatbot_agent,
     "categorizer": categorizer_agent,
+    "relationship": RelationshipAgent,
     "visualizer": visualizer_agent
 }
 
@@ -77,7 +75,7 @@ if uploaded_file:
                 st.stop()
 
             orchestrator = VCHunterOrchestrator(agents)
-            results = orchestrator.run(founder_text=founder_text, trigger_nvca=trigger_nvca, csv=csv_file)
+            results = orchestrator.run(founder_text=founder_text, trigger_nvca=trigger_nvca)
 
             st.success("✅ Analysis complete!")
 
