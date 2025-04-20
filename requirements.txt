@@ -1,5 +1,5 @@
 streamlit
-openai
+openai>=1.0.0
 beautifulsoup4
 tldextract
 requests
@@ -11,5 +11,3 @@ networkx
 pandas
 numpy
 PyPDF2
-hdbscan
-python-dateutil
