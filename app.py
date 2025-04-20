@@ -20,11 +20,13 @@ st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🚀 VC Hunter - Founder Intelligence Explorer")
 
 # === Load OpenAI API key ===
-if "OPENAI_API_KEY" not in os.environ:
-    st.error("Missing OpenAI API key. Please set it in the Streamlit secrets.")
+# === Load OpenAI API key from Streamlit secrets ===
+if "openai_api_key" not in st.secrets:
+    st.error("Missing OpenAI API key. Please set it in Streamlit → Settings → Secrets → openai_api_key.")
     st.stop()
 
-api_key = os.environ["OPENAI_API_KEY"]
+api_key = st.secrets["openai_api_key"]
+
 
 # === File upload ===
 uploaded_file = st.file_uploader("Upload your one-pager (TXT or PDF)", type=["txt", "pdf"])
