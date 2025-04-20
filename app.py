@@ -6,6 +6,9 @@ from relationship_agent import RelationshipAgent
 from visualization_agent import VisualizationAgent
 from founder_doc_reader_and_orchestrator import FounderDocReaderAgent
 
+from dotenv import load_dotenv
+load_dotenv()
+
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
@@ -18,23 +21,27 @@ uploaded_file = st.file_uploader("Upload Founder Document", type=["pdf", "txt", 
 if uploaded_file and openai_api_key:
     st.success("File uploaded successfully. Analyzing...")
 
-    # Instantiate agents
+    # Step 1: Summarize founder doc
     reader_agent = FounderDocReaderAgent(api_key=openai_api_key)
     doc_summary = reader_agent.read_and_summarize(uploaded_file)
 
     st.subheader("📝 Summary")
     st.write(doc_summary)
 
+    # Step 2: Categorize and embed VC firms
     categorizer_agent = CategorizerAgent(api_key=openai_api_key)
     vc_to_vectors, vc_to_companies = categorizer_agent.categorize_and_embed()
     cluster_map = categorizer_agent.cluster_map
 
-    relationship_agent = RelationshipAgent(vc_to_companies, vc_to_vectors)
+    # Step 3: Analyze VC relationships
+    relationship_agent = RelationshipAgent(vc_to_companies=vc_to_companies, vc_to_vectors=vc_to_vectors)
     relationship_graph = relationship_agent.analyze()
 
+    # Step 4: Visualize
     visualizer_agent = VisualizationAgent()
     visualizer_agent.render_graph(relationship_graph)
 
+    # Step 5: Match founder to VCs
     st.subheader("💡 Match Insights")
     embedder_agent = EmbedderAgent(api_key=openai_api_key)
     founder_vec = embedder_agent.embed([doc_summary])[0]
@@ -46,6 +53,7 @@ if uploaded_file and openai_api_key:
 
     st.write(match_result)
 
+    # Step 6: Chat
     st.subheader("💬 Chat with Your Startup Summary")
     chatbot_agent = ChatbotAgent(api_key=openai_api_key)
     user_question = st.text_input("Ask a question about your startup profile...")
