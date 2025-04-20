@@ -6,7 +6,8 @@ import openai
 import logging
 
 class CategorizerAgent:
-    def __init__(self, n_clusters=5):
+    def __init__(self, api_key, n_clusters=5):
+        openai.api_key = api_key
         self.n_clusters = n_clusters
 
     def categorize(self, embeddings, vc_names, summaries_dict):
