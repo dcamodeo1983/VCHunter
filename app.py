@@ -8,9 +8,13 @@ from agents.vc_list_aggregator_agent import VCListAggregatorAgent
 from agents.website_scraper_agent import VCWebsiteScraperAgent
 from agents.portfolio_enricher_agent import PortfolioEnricherAgent
 from agents.llm_embed_gap_match_chat import (
-    LLMSummarizerAgent, EmbedderAgent, GapAnalysisAgent,
-    FounderMatchAgent, ChatbotAgent
+    LLMSummarizerAgent,
+    EmbedderAgent,
+    GapAnalysisAgent,
+    FounderMatchAgent,
+    ChatbotAgent
 )
+
 from agents.categorizer_agent import CategorizerAgent
 from agents.relationship_agent import RelationshipAgent
 from agents.visualization_agent import VisualizationAgent
