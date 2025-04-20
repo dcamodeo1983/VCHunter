@@ -1,60 +1,50 @@
-import numpy as np
+from openai import OpenAI
 from sklearn.cluster import KMeans
-from sklearn.metrics.pairwise import cosine_similarity
-import hdbscan
-import openai
+from hdbscan import HDBSCAN
+import numpy as np
 import logging
 
+logging.basicConfig(level=logging.INFO)
+
 class CategorizerAgent:
-    def __init__(self, api_key, n_clusters=5):
-        openai.api_key = api_key
-        self.n_clusters = n_clusters
+    def __init__(self, api_key):
+        self.client = OpenAI(api_key=api_key)
 
-    def categorize(self, embeddings, vc_names, summaries_dict):
+    def categorize(self, vectors, names, descriptions, use_hdbscan=False):
         try:
-            if len(embeddings) < self.n_clusters:
-                self.n_clusters = max(1, len(embeddings))
+            X = np.stack(vectors)
 
-            kmeans_labels = KMeans(n_clusters=self.n_clusters, random_state=42).fit_predict(embeddings)
+            if use_hdbscan:
+                clusterer = HDBSCAN(min_cluster_size=3)
+                labels = clusterer.fit_predict(X)
+            else:
+                clusterer = KMeans(n_clusters=5, random_state=42)
+                labels = clusterer.fit_predict(X)
 
-            cluster_map = {}
-            for i, label in enumerate(kmeans_labels):
-                if label not in cluster_map:
-                    cluster_map[label] = []
-                cluster_map[label].append(vc_names[i])
+            output = []
+            for cluster_id in np.unique(labels):
+                cluster_names = [n for i, n in enumerate(names) if labels[i] == cluster_id]
+                cluster_texts = [descriptions[n] for n in cluster_names]
 
-            clusters = []
-            for cluster_id, members in cluster_map.items():
-                cluster_summaries = "\n".join([f"{m}: {summaries_dict[m]}" for m in members])
-                description = self.describe_cluster(cluster_summaries)
+                prompt = f"Summarize the investment style of this VC cluster:\n\n" + "\n\n".join(cluster_texts)
 
-                clusters.append({
-                    "cluster_id": cluster_id,
-                    "description": description,
-                    "members": members
+                response = self.client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[{
+                        "role": "user",
+                        "content": prompt
+                    }]
+                )
+                summary = response.choices[0].message.content.strip()
+
+                output.append({
+                    "cluster_id": f"Cluster {cluster_id}",
+                    "summary": summary,
+                    "members": cluster_names
                 })
 
-            return clusters
+            return output
 
         except Exception as e:
             logging.error(f"Categorization failed: {e}")
             return []
-
-    def describe_cluster(self, text_block):
-        try:
-            prompt = f"""
-You are an investment intelligence analyst. Provide a 1-2 sentence summary that describes what these VC firms have in common based on the following data.
-
-{text_block}
-
-Return only the summary description.
-"""
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.4
-            )
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            logging.error(f"Failed to describe cluster: {e}")
-            return "No description available."
