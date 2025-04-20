@@ -1,36 +1,48 @@
+import os
 import streamlit as st
-from website_scraper_agent import WebsiteScraperAgent
-from portfolio_enricher_agent import PortfolioEnricherAgent
+from llm_embed_gap_match_chat import ChatbotAgent, FounderMatchAgent
 from categorizer_agent import CategorizerAgent
 from relationship_agent import RelationshipAgent
 from visualization_agent import VisualizationAgent
 from founder_doc_reader_and_orchestrator import FounderDocReaderAgent
-from llm_embed_gap_match_chat import ChatbotAgent, FounderMatchAgent
 
-import openai
+openai_api_key = os.getenv("OPENAI_API_KEY")
 
-# Set your OpenAI API key
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+st.set_page_config(page_title="VC Hunter", layout="wide")
 
-# Load data from the enrichment step
-vc_to_companies = PortfolioEnricherAgent.load_company_map()
-vc_to_vectors = PortfolioEnricherAgent.load_vector_map()
+st.title("🧠 VC Hunter App")
+st.markdown("Upload your white paper and analyze venture capital relationships.")
 
-# Initialize all agents
-scraper_agent = WebsiteScraperAgent()
-enricher_agent = PortfolioEnricherAgent()
-categorizer_agent = CategorizerAgent(api_key=openai.api_key)
-relationship_agent = RelationshipAgent(vc_to_companies, vc_to_vectors)
-visualizer_agent = VisualizationAgent()
-reader_agent = FounderDocReaderAgent()
-chatbot_agent = ChatbotAgent(api_key=openai.api_key)
-matcher_agent = FounderMatchAgent()
+uploaded_file = st.file_uploader("Upload Founder Document", type=["pdf", "txt", "docx"])
 
-# Your app logic starts here
-st.title("VC Hunter App")
+if uploaded_file and openai_api_key:
+    st.success("File uploaded successfully. Analyzing...")
+    
+    # Instantiate agents
+    reader_agent = FounderDocReaderAgent(api_key=openai_api_key)
+    doc_summary = reader_agent.read_and_summarize(uploaded_file)
 
-uploaded_file = st.file_uploader("Upload your founder doc", type=["pdf", "txt", "docx"])
-if uploaded_file:
-    with st.spinner("Analyzing..."):
-        founder_data = reader_agent.read_and_summarize(uploaded_file)
-        enriched =
+    st.subheader("📝 Summary")
+    st.write(doc_summary)
+
+    categorizer_agent = CategorizerAgent(api_key=openai_api_key)
+    vc_to_vectors, vc_to_companies = categorizer_agent.categorize_and_embed()
+
+    relationship_agent = RelationshipAgent(vc_to_companies, vc_to_vectors)
+    relationship_graph = relationship_agent.build_relationship_graph()
+
+    visualizer_agent = VisualizationAgent()
+    visualizer_agent.render_graph(relationship_graph)
+
+    st.subheader("💡 Match Insights")
+    matcher_agent = FounderMatchAgent()
+    match_result = matcher_agent.match(doc_summary, vc_to_vectors)
+
+    st.write(match_result)
+
+    st.subheader("💬 Chat with Your Startup Summary")
+    chatbot_agent = ChatbotAgent(api_key=openai_api_key)
+    user_question = st.text_input("Ask a question about your startup profile...")
+    if user_question:
+        reply = chatbot_agent.chat(user_question, doc_summary)
+        st.write(reply)
