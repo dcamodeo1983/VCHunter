@@ -1,5 +1,7 @@
 import os
 import streamlit as st
+import openai
+
 from agents.vc_list_aggregator_agent import VCListAggregatorAgent
 from agents.website_scraper_agent import VCWebsiteScraperAgent
 from agents.portfolio_enricher_agent import PortfolioEnricherAgent
@@ -16,30 +18,16 @@ from agents.visualization_agent import VisualizationAgent
 from agents.founder_doc_reader_and_orchestrator import FounderDocReaderAgent, VCHunterOrchestrator
 
 st.set_page_config(page_title="VC Hunter", layout="wide")
-
 st.title("🚀 VC Hunter - Founder Intelligence Explorer")
-import openai
-import streamlit as st
 
-# Load API Key
-api_key = st.secrets.get("openai_api_key")
-openai.api_key = api_key
-
-# Debug output to confirm secret loading
-if not api_key:
-    st.error("❌ OpenAI key not found in secrets.")
-    st.stop()
-else:
-    st.success("✅ OpenAI key loaded successfully.")
-
-# === Load OpenAI API key ===
-# === Load OpenAI API key from Streamlit secrets ===
-if "openai_api_key" not in st.secrets:
-    st.error("Missing OpenAI API key. Please set it in Streamlit → Settings → Secrets → openai_api_key.")
+# ✅ Load OpenAI API key from Streamlit secrets
+if "openai_api_key" not in st.secrets or not st.secrets["openai_api_key"]:
+    st.error("❌ Missing OpenAI API key. Please set it in Streamlit → Settings → Secrets → openai_api_key.")
     st.stop()
 
 api_key = st.secrets["openai_api_key"]
-
+openai.api_key = api_key
+st.success("✅ OpenAI key loaded successfully.")
 
 # === File upload ===
 uploaded_file = st.file_uploader("Upload your one-pager (TXT or PDF)", type=["txt", "pdf"])
