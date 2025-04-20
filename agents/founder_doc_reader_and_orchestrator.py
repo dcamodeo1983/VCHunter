@@ -29,6 +29,7 @@ class VCHunterOrchestrator:
         self.matcher = agents['matcher']
         self.gap = agents['gap']
         self.chatbot = agents['chatbot']
+        self.visualizer = agents['visualizer']
 
     def run(self, founder_text: str, trigger_nvca=False):
         vc_list = self.nvca_updater.fetch_vc_records() if trigger_nvca else []
@@ -39,17 +40,16 @@ class VCHunterOrchestrator:
         vc_portfolios = {}
         vc_to_companies = {}
 
-        for vc in vc_list:
-            st.markdown(f"### 🔍 Scraping {vc['name']}")
-            result = self.scraper.scrape(vc['url'])
+        founder_summary = self.summarizer.summarize_founder(founder_text)
+        st.subheader("📌 Founder Summary")
+        st.markdown(founder_summary or "⚠️ No summary generated from founder document.")
 
+        for vc in vc_list:
+            result = self.scraper.scrape(vc['url'])
             site_text = result.get("site_text", {})
             portfolio_links = result.get("portfolio_links", [])
-            st.write("📄 Site text keys:", list(site_text.keys()))
-            st.write("🔗 Portfolio links found:", len(portfolio_links))
 
             if not site_text:
-                st.warning(f"⚠️ No site text scraped for {vc['name']} — skipping.")
                 continue
 
             merged_site_text = " ".join(site_text.values())
@@ -57,7 +57,6 @@ class VCHunterOrchestrator:
             merged_portfolio = "\n\n".join(portfolio_data.values())
 
             summary = self.summarizer.summarize(merged_site_text, merged_portfolio)
-            st.text(f"🧠 VC Summary for {vc['name']}: {summary[:300] if summary else 'None'}")
 
             if summary:
                 vc_summaries.append(summary)
@@ -67,11 +66,14 @@ class VCHunterOrchestrator:
 
         if not vc_summaries:
             return {
+                "founder_summary": founder_summary,
                 "summaries": [],
                 "clusters": [],
                 "relationships": {},
                 "matches": [],
-                "gaps": []
+                "gaps": [],
+                "visuals": None,
+                "chatbot": None
             }
 
         texts = [str(s) for s in vc_summaries]
@@ -79,11 +81,14 @@ class VCHunterOrchestrator:
 
         if len(vc_embeddings) == 0:
             return {
+                "founder_summary": founder_summary,
                 "summaries": vc_summaries,
                 "clusters": [],
                 "relationships": {},
                 "matches": [],
-                "gaps": []
+                "gaps": [],
+                "visuals": None,
+                "chatbot": None
             }
 
         clusters = self.categorizer.categorize(vc_embeddings, vc_names, {n: str(s) for n, s in zip(vc_names, vc_summaries)})
@@ -104,10 +109,16 @@ class VCHunterOrchestrator:
         matches = self.matcher.match(founder_embedding, vc_embeddings, vc_names, {v: c['cluster_id'] for c in clusters for v in c['members']})
         gaps = self.gap.detect(founder_embedding, centroids, labels) if len(centroids) > 0 else []
 
+        visuals = self.visualizer.plot_all(vc_embeddings, vc_names, clusters, relationships)
+        chatbot = self.chatbot.create(vc_summaries, founder_text)
+
         return {
+            "founder_summary": founder_summary,
             "summaries": vc_summaries,
             "clusters": clusters,
             "relationships": relationships,
             "matches": matches,
-            "gaps": gaps
+            "gaps": gaps,
+            "visuals": visuals,
+            "chatbot": chatbot
         }
