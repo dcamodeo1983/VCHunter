@@ -1,80 +1,65 @@
-from PyPDF2 import PdfReader
-import logging
+from founder_doc_reader_and_orchestrator import clean_text
 
 class FounderDocReaderAgent:
     def __init__(self):
         pass
 
-    def extract_text(self, file_path: str) -> str:
-        try:
-            reader = PdfReader(file_path)
-            text = "\n".join([page.extract_text() or "" for page in reader.pages])
-            return text.strip()
-        except Exception as e:
-            return f"Error reading file: {e}"
+    def extract_text(self, file_text: str) -> str:
+        return clean_text(file_text)
 
 
 class VCHunterOrchestrator:
-    def __init__(self, agents):
-        self.nvca_updater = agents['nvca']
-        self.scraper = agents['scraper']
-        self.portfolio_enricher = agents['portfolio']
-        self.summarizer = agents['summarizer']
-        self.embedder = agents['embedder']
-        self.categorizer = agents['categorizer']
-        self.relationship = agents['relationship']
-        self.matcher = agents['matcher']
-        self.gap = agents['gap']
-        self.chatbot = agents['chatbot']
-        self.visualizer = agents['visualizer']
+    def __init__(self, agents: dict):
+        self.scraper = agents["scraper"]
+        self.portfolio = agents["portfolio"]
+        self.summarizer = agents["summarizer"]
+        self.embedder = agents["embedder"]
+        self.categorizer = agents["categorizer"]
+        self.relationship = agents["relationship"]
+        self.matcher = agents["matcher"]
+        self.gap = agents["gap"]
+        self.chatbot = agents["chatbot"]
+        self.visualizer = agents["visualizer"]
+        self.similar = agents["similar"]
 
-    def run(self, founder_text: str, trigger_nvca=False):
-        # Step 1: Gather VC URLs
-        if trigger_nvca:
-            vc_urls = self.nvca_updater.scrape_nvca()
-        else:
-            vc_urls = self.scraper.scrape()
+    def run(self, founder_summary, urls=None):
+        if not urls:
+            urls = [
+                "https://a16z.com", "https://sequoiacap.com", "https://greylock.com",
+                "https://lightspeedvp.com", "https://benchmark.com", "https://foundersfund.com"
+            ]
 
-        # Step 2: Scrape VC sites
-        raw_site_texts = self.scraper.extract_all(vc_urls)
+        summaries, vectors, vc_to_companies = {}, [], {}
+        names = []
 
-        # Step 3: Enrich with portfolio data
-        portfolio_data = self.portfolio_enricher.enrich(vc_urls)
+        for url in urls:
+            name = url.replace("https://", "").replace("www.", "").split(".")[0].title()
+            scraped = self.scraper.scrape(url)
+            enriched = self.portfolio.enrich(scraped["portfolio_links"])
+            enriched_text = "\n".join(enriched.values())
+            summary = self.summarizer.summarize(scraped["site_text"], enriched_text)
+            summaries[name] = summary
+            names.append(name)
+            vc_to_companies[name] = list(enriched.keys())
 
-        # Step 4: Summarize website + portfolio
-        summaries = {}
-        for url in vc_urls:
-            site_text = raw_site_texts.get(url, "")
-            portfolio_text = portfolio_data.get(url, "")
-            summary = self.summarizer.summarize(site_text, portfolio_text)
-            summaries[url] = summary
-
-        # Step 5: Embed the VC summaries
-        embedded_vectors = self.embedder.embed([summaries[url] for url in vc_urls])
-
-        # Step 6: Categorize VC firms
-        cluster_results = self.categorizer.categorize(
-            embeddings=embedded_vectors,
-            vc_names=vc_urls,
-            summaries_dict=summaries
-        )
-        cluster_map = self.categorizer.cluster_map
-
-        # Step 7: Relationship Graph
-        graph = self.relationship.analyze(
-            vc_to_companies=vc_urls,
-            vc_to_vectors=dict(zip(vc_urls, embedded_vectors))
-        )
-
-        # Step 8: Visualization
-        self.visualizer.render_graph(graph)
-
-        # Step 9: Return outputs
-        return {
-            "summaries": summaries,
-            "clusters": cluster_results,
-            "graph": graph,
-            "vc_urls": vc_urls,
-            "embeddings": embedded_vectors,
-            "cluster_map": cluster_map
+        vectors = self.embedder.embed(list(summaries.values()))
+        clusters = self.categorizer.categorize(vectors, names, summaries)
+        cluster_map = {
+            name: f"Cluster {cid}" for cid, cluster in enumerate(clusters) for name in cluster["members"]
         }
+
+        rel_map = self.relationship(vc_to_companies, dict(zip(names, vectors))).analyze()
+        visuals = self.visualizer.plot_all(vectors, names, clusters, rel_map)
+        matches = self.matcher.match(founder_summary, vectors, names, cluster_map)
+        gaps = self.gap.detect(founder_summary, vectors, names)
+        similar = self.similar.find(founder_summary, vc_to_companies, summaries)
+
+        return {
+            "matches": matches,
+            "gaps": gaps,
+            "similar": similar,
+            "visuals": visuals
+        }
+
+    def chat(self, question, founder_summary):
+        return self.chatbot.create([], founder_summary)
