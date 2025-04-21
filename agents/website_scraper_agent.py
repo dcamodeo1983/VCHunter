@@ -1,20 +1,23 @@
+# agents/website_scraper_agent.py
+
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+import tldextract
 import logging
 
 class VCWebsiteScraperAgent:
     def __init__(self, keywords=None):
-        self.keywords = keywords or ["portfolio", "companies", "investments", "our-companies", "team", "about"]
-        self.session = requests.Session()
-        self.headers = {"User-Agent": "Mozilla/5.0"}
+        self.keywords = keywords or [
+            "portfolio", "companies", "investments", "our-companies", "team", "about"
+        ]
 
     def scrape(self, url):
         try:
-            res = self.session.get(url, timeout=10, headers=self.headers)
+            res = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
             soup = BeautifulSoup(res.text, "html.parser")
 
-            # Extract links likely related to portfolios
+            # Extract all links
             links = [urljoin(url, a["href"]) for a in soup.find_all("a", href=True)]
             portfolio_links = [link for link in links if any(k in link.lower() for k in self.keywords)]
 
