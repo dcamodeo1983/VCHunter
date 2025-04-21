@@ -27,4 +27,7 @@ class VCWebsiteScraperAgent:
 
         except Exception as e:
             logging.error(f"⚠️ Failed to scrape {url}: {e}")
-            return {"site_text": {}, "portfolio_links": []}
+            return {
+                "site_text": {},
+                "portfolio_links": []
+            }
