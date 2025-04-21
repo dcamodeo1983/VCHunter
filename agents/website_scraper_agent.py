@@ -14,9 +14,11 @@ class VCWebsiteScraperAgent:
             res = self.session.get(url, timeout=10, headers=self.headers)
             soup = BeautifulSoup(res.text, "html.parser")
 
+            # Extract links likely related to portfolios
             links = [urljoin(url, a["href"]) for a in soup.find_all("a", href=True)]
             portfolio_links = [link for link in links if any(k in link.lower() for k in self.keywords)]
 
+            # Extract and clean visible paragraph text
             paragraphs = soup.find_all("p")
             text_content = {i: p.get_text(strip=True) for i, p in enumerate(paragraphs[:15])}
 
