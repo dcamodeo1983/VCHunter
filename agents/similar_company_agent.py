@@ -7,22 +7,22 @@ class SimilarCompanyAgent:
     def __init__(self, embedder):
         """
         Args:
-            embedder: An instance of EmbedderAgent used to embed company descriptions.
+            embedder: An instance of EmbedderAgent with an .embed(texts) method.
         """
         self.embedder = embedder
 
     def find_similar(self, founder_vec, portfolio_texts: dict, company_to_vcs: dict, top_n=5):
         """
-        Identify companies in VC portfolios that are similar to the founder's business concept.
+        Finds the most similar portfolio companies to the founder's startup idea.
 
         Args:
-            founder_vec: The embedded vector representation of the founder's summary.
-            portfolio_texts: A dict of {company_url: combined website + portfolio text}.
-            company_to_vcs: A dict of {company_url: [list of VC firms that invested]}.
-            top_n: Number of top similar companies to return.
+            founder_vec (np.ndarray): Embedding vector of the founder's idea.
+            portfolio_texts (dict): Mapping from company URL to enriched text.
+            company_to_vcs (dict): Mapping from company URL to list of VC firms that invested.
+            top_n (int): Number of most similar companies to return.
 
         Returns:
-            A list of dicts containing company_url, similarity_score, and invested_vcs.
+            list of dicts containing 'company_url', 'similarity_score', and 'invested_vcs'
         """
         companies = list(portfolio_texts.keys())
         texts = [portfolio_texts[c] for c in companies]
