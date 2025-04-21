@@ -2,7 +2,7 @@ import os
 import streamlit as st
 from dotenv import load_dotenv
 
-# Updated imports from the 'agents' package
+# Import agents
 from agents.founder_doc_reader_and_orchestrator import VCHunterOrchestrator, FounderDocReaderAgent
 from agents.llm_embed_gap_match_chat import (
     ChatbotAgent, FounderMatchAgent, EmbedderAgent, LLMSummarizerAgent, GapAnalysisAgent
@@ -24,13 +24,11 @@ st.markdown("Upload your white paper to analyze startup fit, VC categories, co-i
 uploaded_file = st.file_uploader("📄 Upload Your Startup Concept (PDF, TXT, or DOCX)", type=["pdf", "txt", "docx"])
 
 if uploaded_file and openai_api_key:
-    st.success("File uploaded successfully.")
-
-    # Show status of entire process
-    with st.status("Running full intelligence pipeline...", expanded=True) as status:
+    with st.status("Processing startup profile...", expanded=True) as status:
         try:
-            # 🧠 Step 1: Set up agents
-            st.write("🔧 Initializing agents...")
+            st.write("✅ Setting up agents...")
+
+            # Initialize agents
             reader = FounderDocReaderAgent()
             summarizer = LLMSummarizerAgent(api_key=openai_api_key)
             embedder = EmbedderAgent(api_key=openai_api_key)
@@ -58,18 +56,16 @@ if uploaded_file and openai_api_key:
                 "similar": similar
             }
 
-            # 📄 Step 2: Read and summarize founder doc
-            st.write("📄 Reading founder document...")
+            st.write("📄 Reading and summarizing your startup concept...")
             founder_text = reader.extract_text(uploaded_file)
 
-            st.write("🧠 Summarizing founder concept...")
+            st.write("🔁 Running full VC intelligence pipeline...")
             orchestrator = VCHunterOrchestrator(agents)
             results = orchestrator.run(founder_text)
 
-            status.update(label="✔️ Pipeline complete!", state="complete", expanded=False)
-
+            status.update(label="✔️ Analysis Complete", state="complete", expanded=False)
         except Exception as e:
-            status.update(label=f"❌ Pipeline failed: {e}", state="error")
+            st.error(f"🚫 Pipeline execution failed: {e}")
             st.stop()
 
     # 📝 Founder Summary
