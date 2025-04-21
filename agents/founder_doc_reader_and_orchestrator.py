@@ -1,8 +1,5 @@
-# 📄 FounderDocReaderAgent – Extract text from uploaded PDF or TXT
-import os
-import logging
 from PyPDF2 import PdfReader
-from docx import Document
+import logging
 
 class FounderDocReaderAgent:
     def __init__(self):
@@ -10,23 +7,13 @@ class FounderDocReaderAgent:
 
     def extract_text(self, file_path: str) -> str:
         try:
-            if file_path.endswith(".pdf"):
-                reader = PdfReader(file_path)
-                text = "\n".join([page.extract_text() or "" for page in reader.pages])
-            elif file_path.endswith(".docx"):
-                doc = Document(file_path)
-                text = "\n".join([para.text for para in doc.paragraphs])
-            elif file_path.endswith(".txt"):
-                with open(file_path, "r", encoding="utf-8") as f:
-                    text = f.read()
-            else:
-                raise ValueError("Unsupported file type.")
+            reader = PdfReader(file_path)
+            text = "\n".join([page.extract_text() or "" for page in reader.pages])
             return text.strip()
         except Exception as e:
-            logging.error(f"Error reading founder file: {e}")
-            return ""
+            return f"Error reading file: {e}"
 
-# 🔁 VCHunterOrchestrator – Connects All Agents for Full Workflow
+
 class VCHunterOrchestrator:
     def __init__(self, agents):
         self.nvca_updater = agents['nvca']
@@ -41,65 +28,53 @@ class VCHunterOrchestrator:
         self.chatbot = agents['chatbot']
         self.visualizer = agents['visualizer']
 
-    def run(self, founder_text: str, trigger_nvca: bool = False) -> dict:
-        try:
-            # Step 1: Update VC list (optional refresh from public sources)
-            if trigger_nvca:
-                logging.info("Refreshing VC URLs from upstream...")
-                vc_urls = self.nvca_updater.update()
-            else:
-                logging.info("Using existing scraped VC URLs...")
-                vc_urls = self.scraper.get_urls()
+    def run(self, founder_text: str, trigger_nvca=False):
+        # Step 1: Gather VC URLs
+        if trigger_nvca:
+            vc_urls = self.nvca_updater.scrape_nvca()
+        else:
+            vc_urls = self.scraper.scrape()
 
-            # Step 2: Enrich with portfolio links
-            vc_to_companies = self.portfolio_enricher.enrich(vc_urls)
+        # Step 2: Scrape VC sites
+        raw_site_texts = self.scraper.extract_all(vc_urls)
 
-            # Step 3: Summarize VC firm sites
-            vc_summaries = self.summarizer.summarize(vc_urls)
+        # Step 3: Enrich with portfolio data
+        portfolio_data = self.portfolio_enricher.enrich(vc_urls)
 
-            # Step 4: Embed VC summaries
-            vc_to_vectors = self.embedder.embed(vc_summaries)
+        # Step 4: Summarize website + portfolio
+        summaries = {}
+        for url in vc_urls:
+            site_text = raw_site_texts.get(url, "")
+            portfolio_text = portfolio_data.get(url, "")
+            summary = self.summarizer.summarize(site_text, portfolio_text)
+            summaries[url] = summary
 
-            # Step 5: Categorize VCs with dynamic clustering
-            cluster_descriptions = self.categorizer.categorize(
-                embeddings=list(vc_to_vectors.values()),
-                vc_names=list(vc_to_vectors.keys()),
-                summaries_dict=vc_summaries
-            )
-            cluster_map = self.categorizer.cluster_map
+        # Step 5: Embed the VC summaries
+        embedded_vectors = self.embedder.embed([summaries[url] for url in vc_urls])
 
-            # Step 6: Analyze relationships
-            relationship_graph = self.relationship.analyze(vc_to_companies, vc_to_vectors)
+        # Step 6: Categorize VC firms
+        cluster_results = self.categorizer.categorize(
+            embeddings=embedded_vectors,
+            vc_names=vc_urls,
+            summaries_dict=summaries
+        )
+        cluster_map = self.categorizer.cluster_map
 
-            # Step 7: Match founder to VCs
-            founder_vec = self.embedder.embed([founder_text])[0]
-            match_results = self.matcher.match(
-                founder_vector=founder_vec,
-                vc_vectors=list(vc_to_vectors.values()),
-                vc_names=list(vc_to_vectors.keys()),
-                cluster_map=cluster_map
-            )
+        # Step 7: Relationship Graph
+        graph = self.relationship.analyze(
+            vc_to_companies=vc_urls,
+            vc_to_vectors=dict(zip(vc_urls, embedded_vectors))
+        )
 
-            # Step 8: Visualize relationship graph
-            self.visualizer.render_graph(relationship_graph)
+        # Step 8: Visualization
+        self.visualizer.render_graph(graph)
 
-            # Step 9: Generate chatbot context
-            chatbot_reply = self.chatbot.create(vc_summaries, founder_text)
-
-            return {
-                "summary": founder_text,
-                "vc_summaries": vc_summaries,
-                "match_results": match_results,
-                "cluster_descriptions": cluster_descriptions,
-                "chatbot_reply": chatbot_reply
-            }
-
-        except Exception as e:
-            logging.error(f"VCHunter orchestrator failed: {e}")
-            return {
-                "summary": founder_text,
-                "vc_summaries": {},
-                "match_results": [],
-                "cluster_descriptions": [],
-                "chatbot_reply": "Error generating response."
-            }
+        # Step 9: Return outputs
+        return {
+            "summaries": summaries,
+            "clusters": cluster_results,
+            "graph": graph,
+            "vc_urls": vc_urls,
+            "embeddings": embedded_vectors,
+            "cluster_map": cluster_map
+        }
