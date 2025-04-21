@@ -1,8 +1,9 @@
 import numpy as np
-from sklearn.cluster import KMeans
-import openai
 import logging
 from openai import OpenAI
+from sklearn.cluster import KMeans, AgglomerativeClustering
+from sklearn.metrics import silhouette_score
+import hdbscan
 
 class CategorizerAgent:
     def __init__(self, api_key, n_clusters=5):
@@ -12,13 +13,10 @@ class CategorizerAgent:
 
     def categorize(self, embeddings, vc_names, summaries_dict):
         try:
-            if len(embeddings) < self.n_clusters:
-                self.n_clusters = max(1, len(embeddings))
-
-            kmeans_labels = KMeans(n_clusters=self.n_clusters, random_state=42).fit_predict(embeddings)
+            labels = self.cluster_embeddings(embeddings)
 
             self.cluster_map = {}
-            for i, label in enumerate(kmeans_labels):
+            for i, label in enumerate(labels):
                 if label not in self.cluster_map:
                     self.cluster_map[label] = []
                 self.cluster_map[label].append(vc_names[i])
@@ -27,7 +25,6 @@ class CategorizerAgent:
             for cluster_id, members in self.cluster_map.items():
                 cluster_summaries = "\n".join([f"{m}: {summaries_dict[m]}" for m in members])
                 description = self.describe_cluster(cluster_summaries)
-
                 clusters.append({
                     "cluster_id": cluster_id,
                     "description": description,
@@ -39,6 +36,47 @@ class CategorizerAgent:
         except Exception as e:
             logging.error(f"Categorization failed: {e}")
             return []
+
+    def cluster_embeddings(self, embeddings):
+        N = len(embeddings)
+
+        if N < 100:
+            return self._run_kmeans(embeddings)
+        elif 100 <= N < 500:
+            try:
+                labels, score = self._run_kmeans(embeddings, return_score=True)
+                if score < 0.25:
+                    raise ValueError("Low silhouette score")
+                return labels
+            except Exception as e:
+                logging.warning(f"KMeans failed or low quality: {e}, falling back to HDBSCAN")
+                return self._run_hdbscan(embeddings)
+        else:
+            return self._run_ensemble_clustering(embeddings)
+
+    def _run_kmeans(self, embeddings, return_score=False):
+        k = min(self.n_clusters, len(embeddings))
+        km = KMeans(n_clusters=k, random_state=42)
+        labels = km.fit_predict(embeddings)
+        if return_score:
+            score = silhouette_score(embeddings, labels)
+            return labels, score
+        return labels
+
+    def _run_hdbscan(self, embeddings):
+        clusterer = hdbscan.HDBSCAN(min_cluster_size=max(5, len(embeddings) // 20))
+        return clusterer.fit_predict(embeddings)
+
+    def _run_ensemble_clustering(self, embeddings):
+        km_labels = self._run_kmeans(embeddings)
+        ag_labels = AgglomerativeClustering(n_clusters=min(self.n_clusters, len(embeddings))).fit_predict(embeddings)
+        hdb_labels = self._run_hdbscan(embeddings)
+
+        final_labels = []
+        for i in range(len(embeddings)):
+            votes = [km_labels[i], ag_labels[i], hdb_labels[i]]
+            final_labels.append(max(set(votes), key=votes.count))  # majority vote
+        return np.array(final_labels)
 
     def describe_cluster(self, text_block):
         try:
