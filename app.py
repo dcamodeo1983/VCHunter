@@ -26,74 +26,88 @@ uploaded_file = st.file_uploader("📄 Upload Your Startup Concept (PDF, TXT, or
 if uploaded_file and openai_api_key:
     st.success("File uploaded successfully.")
 
-    with st.spinner("⏳ Initializing agents..."):
-        reader = FounderDocReaderAgent()
-        summarizer = LLMSummarizerAgent(api_key=openai_api_key)
-        embedder = EmbedderAgent(api_key=openai_api_key)
-        categorizer = CategorizerAgent(api_key=openai_api_key)
-        relationship = RelationshipAgent
-        visualizer = VisualizationAgent()
-        matcher = FounderMatchAgent()
-        chatbot = ChatbotAgent(api_key=openai_api_key)
-        gap = GapAnalysisAgent()
-        scraper = VCWebsiteScraperAgent()
-        portfolio = PortfolioEnricherAgent()
-        similar = SimilarCompanyAgent(embedder=embedder)
-
-        agents = {
-            "scraper": scraper,
-            "portfolio": portfolio,
-            "summarizer": summarizer,
-            "embedder": embedder,
-            "categorizer": categorizer,
-            "relationship": relationship,
-            "visualizer": visualizer,
-            "matcher": matcher,
-            "chatbot": chatbot,
-            "gap": gap,
-            "similar": similar
-        }
-
-    with st.spinner("📄 Extracting text and running VC analysis pipeline..."):
+    # Show status of entire process
+    with st.status("Running full intelligence pipeline...", expanded=True) as status:
         try:
-            orchestrator = VCHunterOrchestrator(agents)
+            # 🧠 Step 1: Set up agents
+            st.write("🔧 Initializing agents...")
+            reader = FounderDocReaderAgent()
+            summarizer = LLMSummarizerAgent(api_key=openai_api_key)
+            embedder = EmbedderAgent(api_key=openai_api_key)
+            categorizer = CategorizerAgent(api_key=openai_api_key)
+            relationship = RelationshipAgent
+            visualizer = VisualizationAgent()
+            matcher = FounderMatchAgent()
+            chatbot = ChatbotAgent(api_key=openai_api_key)
+            gap = GapAnalysisAgent()
+            scraper = VCWebsiteScraperAgent()
+            portfolio = PortfolioEnricherAgent()
+            similar = SimilarCompanyAgent(embedder=embedder)
+
+            agents = {
+                "scraper": scraper,
+                "portfolio": portfolio,
+                "summarizer": summarizer,
+                "embedder": embedder,
+                "categorizer": categorizer,
+                "relationship": relationship,
+                "visualizer": visualizer,
+                "matcher": matcher,
+                "chatbot": chatbot,
+                "gap": gap,
+                "similar": similar
+            }
+
+            # 📄 Step 2: Read and summarize founder doc
+            st.write("📄 Reading founder document...")
             founder_text = reader.extract_text(uploaded_file)
+
+            st.write("🧠 Summarizing founder concept...")
+            orchestrator = VCHunterOrchestrator(agents)
             results = orchestrator.run(founder_text)
+
+            status.update(label="✔️ Pipeline complete!", state="complete", expanded=False)
+
         except Exception as e:
-            st.error(f"Pipeline execution failed: {e}")
+            status.update(label=f"❌ Pipeline failed: {e}", state="error")
             st.stop()
 
-    st.success("✔️ Analysis complete.")
-
-    # ======================= DISPLAY OUTPUTS =========================
+    # 📝 Founder Summary
     st.subheader("📝 Founder Summary")
     st.write(results["founder_summary"])
 
+    # 🧠 VC Clusters
     st.subheader("📊 VC Clustering")
     for cluster in results["clusters"]:
         st.markdown(f"**Cluster {cluster['cluster_id']}:** {cluster['description']}")
         st.markdown(", ".join(cluster['members']))
 
+    # 🔥 Visuals
     st.subheader("🧭 Visual Intelligence")
     for title, fig in results["visuals"].items():
         st.pyplot(fig)
 
+    # 🤝 Relationships
     st.subheader("🤝 VC Co-Investment & Relationships")
     for r in results["relationships"]["co_investment"][:10]:
         st.markdown(f"- **{r['firm_a']}** and **{r['firm_b']}** → {r['type']} (Jaccard: {r['score']}, Cosine: {r['cosine_similarity']})")
 
+    # 💡 Match Insights
     st.subheader("💡 Top VC Matches")
     for match in results["matches"]:
         st.markdown(f"- **{match['vc']}** | Score: {match['score']} | Cluster: {match['cluster']}")
 
+    # 🕵️ Similar Companies
     st.subheader("🔍 Similar Portfolio Companies")
     for item in results["similar_companies"]:
         st.markdown(f"- **{item['company']}** ([Website]({item['url']})) backed by: {', '.join(item['vcs'])}")
 
+    # 🧠 Gap Signals
     st.subheader("🚪 Strategic Gap Opportunities")
     for gap_item in results["gap"]:
         st.markdown(f"- Cluster {gap_item['cluster']} | Similarity: {gap_item['similarity']}")
 
+    # 💬 Chat with your summary
     st.subheader("💬 Ask About Your Profile")
     user_question = st.text_input("Ask anything about your startup or the VC landscape...")
     if user_question:
