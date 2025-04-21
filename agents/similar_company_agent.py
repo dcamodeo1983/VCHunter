@@ -1,7 +1,6 @@
-# agents/similar_company_agent.py
-
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+import logging
 
 class SimilarCompanyAgent:
     def __init__(self, embedder):
@@ -29,6 +28,7 @@ class SimilarCompanyAgent:
 
         embeddings = self.embedder.embed(texts)
         if not embeddings or founder_vec is None:
+            logging.warning("❌ No embeddings returned in SimilarCompanyAgent.")
             return []
 
         similarities = cosine_similarity([founder_vec], embeddings)[0]
