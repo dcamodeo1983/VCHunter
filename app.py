@@ -82,8 +82,9 @@ if st.button("🚀 Run Analysis") and st.session_state["founder_docs"] and opena
             logger.info(f"📄 Extracted {len(extracted)} characters from uploaded file.")
             full_text += extracted + "\n"
 
-        # Run orchestration
+        st.write("🧠 Running orchestrator... Check logs for updates.")
         results = orchestrator.run(full_text)
+
         st.session_state["results"] = results
         st.success("✔️ Analysis complete.")
         logger.info("✅ VC Hunter analysis completed successfully.")
