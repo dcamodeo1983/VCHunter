@@ -1,3 +1,4 @@
+
 import os
 import logging
 import streamlit as st
@@ -44,6 +45,7 @@ if st.button("🚀 Run Analysis") and st.session_state["founder_docs"] and opena
     try:
         st.info("⏳ Running full intelligence pipeline... This may take 1–3 minutes.")
         logger.info("🚀 Starting VC Hunter Analysis")
+        st.write("🚀 Starting analysis...")
 
         # Initialize agents
         reader = FounderDocReaderAgent()
@@ -82,12 +84,13 @@ if st.button("🚀 Run Analysis") and st.session_state["founder_docs"] and opena
             logger.info(f"📄 Extracted {len(extracted)} characters from uploaded file.")
             full_text += extracted + "\n"
 
-        st.write("🧠 Running orchestrator... Check logs for updates.")
+        st.write("🧠 Running orchestrator...")
+        # Run orchestration
         results = orchestrator.run(full_text)
-
         st.session_state["results"] = results
         st.success("✔️ Analysis complete.")
         logger.info("✅ VC Hunter analysis completed successfully.")
+        st.write("✅ Analysis complete.")
 
     except Exception as e:
         logger.exception(f"❌ Pipeline execution failed: {e}")
