@@ -1,4 +1,5 @@
 import os
+import logging
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -13,13 +14,20 @@ from agents.similar_company_agent import SimilarCompanyAgent
 from agents.website_scraper_agent import VCWebsiteScraperAgent
 from agents.portfolio_enricher_agent import PortfolioEnricherAgent
 
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load environment variables
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
+# Streamlit UI setup
 st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🧠 VC Hunter App")
 st.markdown("Upload one or more white papers to analyze startup fit, VC categories, co-investment networks, and portfolio signals.")
 
+# Session state setup
 if "founder_docs" not in st.session_state:
     st.session_state["founder_docs"] = []
 if "results" not in st.session_state:
@@ -31,10 +39,11 @@ if uploaded_files:
     st.session_state["founder_docs"] = uploaded_files
     st.success(f"{len(uploaded_files)} document(s) uploaded.")
 
-# Run Analysis button
+# Run Analysis
 if st.button("🚀 Run Analysis") and st.session_state["founder_docs"] and openai_api_key:
     try:
-        st.info("Running full intelligence pipeline... Please wait.")
+        st.info("⏳ Running full intelligence pipeline... This may take 1–3 minutes.")
+        logger.info("🚀 Starting VC Hunter Analysis")
 
         # Initialize agents
         reader = FounderDocReaderAgent()
@@ -66,19 +75,25 @@ if st.button("🚀 Run Analysis") and st.session_state["founder_docs"] and opena
 
         orchestrator = VCHunterOrchestrator(agents)
 
+        # Combine all uploaded docs into one text blob
         full_text = ""
         for file in st.session_state["founder_docs"]:
-            full_text += reader.extract_text(file) + "\n"
+            extracted = reader.extract_text(file)
+            logger.info(f"📄 Extracted {len(extracted)} characters from uploaded file.")
+            full_text += extracted + "\n"
 
+        # Run orchestration
         results = orchestrator.run(full_text)
         st.session_state["results"] = results
         st.success("✔️ Analysis complete.")
+        logger.info("✅ VC Hunter analysis completed successfully.")
 
     except Exception as e:
+        logger.exception(f"❌ Pipeline execution failed: {e}")
         st.error(f"Pipeline execution failed: {e}")
         st.stop()
 
-# Display Results
+# Show results
 results = st.session_state.get("results")
 if results:
     st.subheader("📝 Founder Summary")
