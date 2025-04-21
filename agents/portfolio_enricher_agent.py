@@ -2,31 +2,39 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import logging
+import traceback
 
 class PortfolioEnricherAgent:
-    def __init__(self, limit=10):
+    def __init__(self, limit=10, delay=1.0):
         self.limit = limit
+        self.delay = delay
         self.session = requests.Session()
-        self.headers = {"User-Agent": "Mozilla/5.0"}
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; VC-HunterBot/1.0; +https://yourdomain.com/bot)"
+        }
 
-    def extract_visible_text(self, html):
+    def extract_visible_text(self, html: str) -> str:
         soup = BeautifulSoup(html, "html.parser")
         for tag in soup(["script", "style", "noscript"]):
             tag.decompose()
         return " ".join(soup.stripped_strings)
 
-    def enrich(self, links):
+    def enrich(self, links: list[str]) -> dict:
         company_data = {}
-        for url in list(set(links))[:self.limit]:
+        deduped_urls = list(dict.fromkeys(links))[:self.limit]
+
+        for url in deduped_urls:
             try:
-                r = self.session.get(url, timeout=10, headers=self.headers)
-                if r.status_code == 200:
-                    text = self.extract_visible_text(r.text)
-                    company_data[url] = text[:8000]  # Clip to manageable size
-                    logging.info(f"✅ Scraped {url}")
+                response = self.session.get(url, timeout=10, headers=self.headers)
+                if response.status_code == 200:
+                    text = self.extract_visible_text(response.text)
+                    company_data[url] = text[:8000]
+                    logging.info(f"[ENRICH ✅] Scraped {url}")
                 else:
-                    logging.warning(f"⚠️ {url} returned HTTP {r.status_code}")
+                    logging.warning(f"[ENRICH ⚠️] HTTP {response.status_code} from {url}")
             except Exception as e:
-                logging.error(f"❌ Error scraping {url}: {e}")
-            time.sleep(1)  # Rate limiting for polite scraping
+                logging.error(f"[ENRICH ❌] Failed to scrape {url}: {e}")
+                traceback.print_exc()
+            time.sleep(self.delay)
+
         return company_data
