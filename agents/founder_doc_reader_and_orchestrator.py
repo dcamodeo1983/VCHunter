@@ -1,6 +1,4 @@
-# agents/founder_doc_reader_and_orchestrator.py
-
-from agents.utils import clean_text  # ✅ FIXED
+from agents.utils import clean_text
 from PyPDF2 import PdfReader
 
 class FounderDocReaderAgent:
@@ -14,6 +12,7 @@ class FounderDocReaderAgent:
             return clean_text(text)
         except Exception as e:
             return f"Error reading file: {e}"
+
 
 class VCHunterOrchestrator:
     def __init__(self, agents):
@@ -62,7 +61,7 @@ class VCHunterOrchestrator:
         visuals = self.visualizer.plot_all(embeddings, vc_urls, clusters, relationship_graph)
         matches = self.matcher.match(founder_vec, embeddings, vc_urls, cluster_map)
         gap = self.gap.detect(founder_vec, embeddings, [c['cluster_id'] for c in clusters])
-        similar = self.similar.find(founder_vec, vc_to_vectors, vc_to_companies)
+        similar = self.similar.find_similar(founder_vec, vc_to_vectors, vc_to_companies)  # ✅ FIXED CALL
 
         return {
             "founder_summary": founder_summary,
