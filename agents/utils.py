@@ -2,8 +2,10 @@
 
 import re
 import unicodedata
+import logging
 from typing import Set
 
+logging.basicConfig(level=logging.INFO)
 
 def clean_text(text: str) -> str:
     """
@@ -22,11 +24,12 @@ def clean_text(text: str) -> str:
     if not text:
         return ""
 
-    # Unicode normalization and cleanup
     text = unicodedata.normalize("NFKD", text)
     text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'[^\x00-\x7F]+', '', text)  # Remove non-ASCII characters
-    return text.strip()
+    text = re.sub(r'[^\x00-\x7F]+', '', text)
+    cleaned = text.strip()
+    logging.debug(f"Cleaned text length: {len(cleaned)}")
+    return cleaned
 
 
 def jaccard_similarity(set1: Set[str], set2: Set[str]) -> float:
@@ -42,4 +45,6 @@ def jaccard_similarity(set1: Set[str], set2: Set[str]) -> float:
     """
     intersection = set1.intersection(set2)
     union = set1.union(set2)
-    return len(intersection) / len(union) if union else 0.0
+    score = len(intersection) / len(union) if union else 0.0
+    logging.debug(f"Jaccard similarity: {score:.4f}")
+    return score
