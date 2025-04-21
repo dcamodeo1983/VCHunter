@@ -2,70 +2,74 @@ import os
 import streamlit as st
 from dotenv import load_dotenv
 
-from llm_embed_gap_match_chat import ChatbotAgent, FounderMatchAgent, EmbedderAgent
+from founder_doc_reader_and_orchestrator import VCHunterOrchestrator, FounderDocReaderAgent
+from llm_embed_gap_match_chat import ChatbotAgent, FounderMatchAgent, EmbedderAgent, LLMSummarizerAgent, GapAnalysisAgent
 from categorizer_agent import CategorizerAgent
 from relationship_agent import RelationshipAgent
 from visualization_agent import VisualizationAgent
-from founder_doc_reader_and_orchestrator import FounderDocReaderAgent
+from portfolio_enricher_agent import PortfolioEnricherAgent
+from website_scraper_agent import VCWebsiteScraperAgent
+from similar_company_finder_agent import SimilarCompanyFinderAgent
 
-# Load API key securely
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
-# Streamlit page config
 st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🧠 VC Hunter App")
 st.markdown("Upload your white paper and analyze venture capital relationships.")
 
-uploaded_file = st.file_uploader("Upload Founder Document", type=["pdf", "txt", "docx"])
+uploaded_file = st.file_uploader("Upload Founder Document", type=["pdf", "txt", "docx", "pdf"])
 
-# Ensure both document and API key are present
 if uploaded_file and openai_api_key:
-    st.success("File uploaded successfully. Analyzing...")
+    st.success("File uploaded. Running full VC analysis pipeline...")
 
-    # Step 1: Summarize founder document
-    reader_agent = FounderDocReaderAgent(api_key=openai_api_key)
-    doc_summary = reader_agent.read_and_summarize(uploaded_file)
+    # Step 1: Read and summarize
+    reader = FounderDocReaderAgent()
+    raw_text = uploaded_file.read().decode("utf-8", errors="ignore")
+    founder_text = reader.extract_text(raw_text)
+    summarizer = LLMSummarizerAgent(api_key=openai_api_key)
+    founder_summary = summarizer.summarize_founder(founder_text)
 
-    st.subheader("📝 Summary")
-    st.write(doc_summary)
+    st.subheader("📝 Founder Summary")
+    st.write(founder_summary)
 
-    # Step 2: Categorize VC firms (embedding + clustering)
-    categorizer_agent = CategorizerAgent(api_key=openai_api_key)
-    vc_to_vectors, vc_to_companies = categorizer_agent.categorize_and_embed()
-    cluster_map = categorizer_agent.cluster_map
+    # Step 2: Load and run orchestrator
+    orchestrator = VCHunterOrchestrator({
+        "nvca": None,  # Optional
+        "scraper": VCWebsiteScraperAgent(),
+        "portfolio": PortfolioEnricherAgent(limit=8),
+        "summarizer": summarizer,
+        "embedder": EmbedderAgent(api_key=openai_api_key),
+        "categorizer": CategorizerAgent(api_key=openai_api_key),
+        "relationship": RelationshipAgent,
+        "matcher": FounderMatchAgent(),
+        "gap": GapAnalysisAgent(),
+        "chatbot": ChatbotAgent(api_key=openai_api_key),
+        "visualizer": VisualizationAgent(),
+        "similar": SimilarCompanyFinderAgent()
+    })
 
-    # PROCEED ONLY IF embedding and clustering are successful
-    if vc_to_vectors and vc_to_companies and cluster_map:
-        # Step 3: Analyze relationships
-        relationship_agent = RelationshipAgent(vc_to_companies=vc_to_companies, vc_to_vectors=vc_to_vectors)
-        relationship_graph = relationship_agent.analyze()
+    result = orchestrator.run(founder_summary)
 
-        # Step 4: Visualize relationships
-        visualizer_agent = VisualizationAgent()
-        visualizer_agent.render_graph(relationship_graph)
+    st.subheader("📊 Visual Insights")
+    for label, fig in result["visuals"].items():
+        st.pyplot(fig)
 
-        # Step 5: Match founder to VCs
-        st.subheader("💡 Match Insights")
-        embedder_agent = EmbedderAgent(api_key=openai_api_key)
-        founder_vec = embedder_agent.embed([doc_summary])[0]
-        vc_names = list(vc_to_vectors.keys())
-        vc_vecs = [vc_to_vectors[name] for name in vc_names]
+    st.subheader("💡 Top VC Matches")
+    st.dataframe(result["matches"])
 
-        matcher_agent = FounderMatchAgent()
-        match_result = matcher_agent.match(founder_vec, vc_vecs, vc_names, cluster_map)
+    st.subheader("🧭 Market Gaps (White Space)")
+    st.json(result["gaps"])
 
-        st.write(match_result)
+    st.subheader("🔍 Similar Companies to Your Idea")
+    for rec in result["similar"]:
+        st.markdown(f"**{rec['company']}**")
+        st.markdown(f"- Website: {rec['url']}")
+        st.markdown(f"- Investors: {', '.join(rec['vcs'])}")
+        st.markdown("---")
 
-        # Step 6: Chat interface
-        st.subheader("💬 Chat with Your Startup Summary")
-        chatbot_agent = ChatbotAgent(api_key=openai_api_key)
-        user_question = st.text_input("Ask a question about your startup profile...")
-        if user_question:
-            reply = chatbot_agent.create(vc_summaries=[], founder_text=doc_summary)
-            st.write(reply)
-    else:
-        st.error("Embedding or categorization failed. Please check VC data integrity.")
-else:
-    if not openai_api_key:
-        st.warning("Missing OpenAI API Key.")
+    st.subheader("💬 Chat")
+    user_q = st.text_input("Ask a question about your idea or the VC landscape:")
+    if user_q:
+        reply = orchestrator.chat(user_q, founder_summary)
+        st.write(reply)
