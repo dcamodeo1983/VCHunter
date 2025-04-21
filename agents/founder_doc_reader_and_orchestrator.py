@@ -1,10 +1,9 @@
+
 import logging
 from agents.utils import clean_text
 from PyPDF2 import PdfReader
 
-# Setup module-level logger
 logger = logging.getLogger(__name__)
-
 
 class FounderDocReaderAgent:
     def __init__(self):
@@ -14,10 +13,10 @@ class FounderDocReaderAgent:
         try:
             reader = PdfReader(uploaded_file)
             text = "\n".join([page.extract_text() or "" for page in reader.pages])
-            logger.info(f"Extracted {len(text)} characters from founder doc.")
+            logger.info(f"✅ Successfully extracted {len(text)} characters from uploaded document.")
             return clean_text(text)
         except Exception as e:
-            logger.error(f"Error reading founder doc: {e}")
+            logger.exception("❌ Failed to extract text from uploaded file.")
             return f"Error reading file: {e}"
 
 
@@ -36,9 +35,10 @@ class VCHunterOrchestrator:
         self.similar = agents['similar']
 
     def run(self, founder_text: str):
-        logger.info("🚀 Starting orchestrator pipeline")
-
+        logger.info("⚙️ Summarizing founder document...")
         founder_summary = self.summarizer.summarize_founder(founder_text)
+
+        logger.info("⚙️ Embedding founder summary...")
         founder_embeds = self.embedder.embed([founder_summary])
         if not founder_embeds:
             raise ValueError("Founder embedding failed.")
@@ -68,30 +68,32 @@ class VCHunterOrchestrator:
                 logger.warning(f"⚠️ Error processing {url}: {e}")
                 continue
 
+        logger.info("🧠 Embedding VC summaries...")
         embeddings = self.embedder.embed([vc_summaries[url] for url in vc_summaries])
         vc_to_vectors = dict(zip(vc_summaries.keys(), embeddings))
         vc_to_companies = vc_portfolios
 
-        logger.info("📊 Categorizing VC firms")
+        logger.info("🔍 Categorizing VCs...")
         clusters = self.categorizer.categorize(embeddings, list(vc_summaries.keys()), vc_summaries)
         cluster_map = {vc: cluster['cluster_id'] for cluster in clusters for vc in cluster['members']}
 
-        logger.info("🔗 Mapping relationships")
+        logger.info("🤝 Mapping VC relationships...")
         relationship_graph = self.relationship(vc_to_companies, vc_to_vectors).analyze()
 
-        logger.info("🖼 Generating visuals")
+        logger.info("📊 Creating visualizations...")
         visuals = self.visualizer.plot_all(embeddings, list(vc_summaries.keys()), clusters, relationship_graph)
 
-        logger.info("🧠 Matching founder to VCs")
+        logger.info("💡 Matching founder to VCs...")
         matches = self.matcher.match(founder_vec, embeddings, list(vc_summaries.keys()), cluster_map)
 
-        logger.info("🚪 Detecting strategic whitespace")
+        logger.info("🚪 Detecting strategic gaps...")
         gap = self.gap.detect(founder_vec, embeddings, [c['cluster_id'] for c in clusters])
 
-        logger.info("🔍 Finding similar companies")
+        logger.info("🔍 Finding similar companies...")
         similar = self.similar.find_similar(founder_vec, vc_to_vectors, vc_to_companies)
 
-        logger.info("✅ Orchestration complete")
+        logger.info("✅ Full VC intelligence analysis complete.")
+
         return {
             "founder_summary": founder_summary,
             "vc_summaries": list(vc_summaries.values()),
