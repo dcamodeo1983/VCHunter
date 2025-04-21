@@ -79,4 +79,6 @@ class VCHunterOrchestrator:
             "relationships": relationship_graph,
             "visuals": visuals,
             "matches": matches,
-            "
+            "gap": gap,
+            "similar_companies": similar
+        }
