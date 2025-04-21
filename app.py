@@ -38,7 +38,7 @@ if uploaded_file and openai_api_key:
     gap = GapAnalysisAgent()
     scraper = VCWebsiteScraperAgent()
     portfolio = PortfolioEnricherAgent()
-    similar = SimilarCompanyAgent()
+    similar = SimilarCompanyAgent(embedder=embedder)
 
     agents = {
         "scraper": scraper,
@@ -54,9 +54,15 @@ if uploaded_file and openai_api_key:
         "similar": similar
     }
 
-    orchestrator = VCHunterOrchestrator(agents)
-    founder_text = reader.extract_text(uploaded_file)
-    results = orchestrator.run(founder_text)
+    try:
+        orchestrator = VCHunterOrchestrator(agents)
+        founder_text = reader.extract_text(uploaded_file)
+        results = orchestrator.run(founder_text)
+    except Exception as e:
+        st.error(f"Pipeline execution failed: {e}")
+        st.stop()
+
+    st.success("✔️ Analysis complete.")
 
     # 📝 Founder Summary
     st.subheader("📝 Founder Summary")
