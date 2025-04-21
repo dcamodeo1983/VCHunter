@@ -21,20 +21,21 @@ st.set_page_config(page_title="VC Hunter", layout="wide")
 st.title("🧠 VC Hunter App")
 st.markdown("Upload your white paper to analyze startup fit, VC categories, co-investment networks, and portfolio signals.")
 
-# 🔁 Persistent state
+# Session state for multiple founder docs
 if "founder_docs" not in st.session_state:
     st.session_state["founder_docs"] = []
 
 uploaded_file = st.file_uploader("📄 Upload Your Startup Concept (PDF, TXT, or DOCX)", type=["pdf", "txt", "docx"])
+
 if uploaded_file:
     st.session_state["founder_docs"].append(uploaded_file)
-    st.success(f"✅ Added: {uploaded_file.name}")
+    st.success(f"✅ Document '{uploaded_file.name}' added. You can upload more or click 'Run Analysis'.")
 
-if st.button("🚀 Run Full Analysis") and st.session_state["founder_docs"]:
+if st.session_state["founder_docs"] and st.button("🚀 Run Analysis") and openai_api_key:
     try:
-        st.info("Running full intelligence pipeline...")
+        st.info("🔍 Running full intelligence pipeline...")
 
-        # Agent setup
+        # Initialize agents
         reader = FounderDocReaderAgent()
         summarizer = LLMSummarizerAgent(api_key=openai_api_key)
         embedder = EmbedderAgent(api_key=openai_api_key)
@@ -64,12 +65,11 @@ if st.button("🚀 Run Full Analysis") and st.session_state["founder_docs"]:
 
         orchestrator = VCHunterOrchestrator(agents)
 
-        full_text = ""
+        all_text = ""
         for doc in st.session_state["founder_docs"]:
-            full_text += "\n" + reader.extract_text(doc)
+            all_text += reader.extract_text(doc) + "\n\n"
 
-        results = orchestrator.run(full_text)
-
+        results = orchestrator.run(all_text)
         st.success("✔️ Analysis complete.")
 
         # 📝 Founder Summary
@@ -80,7 +80,7 @@ if st.button("🚀 Run Full Analysis") and st.session_state["founder_docs"]:
         st.subheader("📊 VC Clustering")
         for cluster in results["clusters"]:
             st.markdown(f"**Cluster {cluster['cluster_id']}:** {cluster['description']}")
-            st.markdown(", ".join(cluster['members"]))
+            st.markdown(", ".join(cluster["members"]))
 
         # 🔥 Visuals
         st.subheader("🧭 Visual Intelligence")
@@ -115,6 +115,4 @@ if st.button("🚀 Run Full Analysis") and st.session_state["founder_docs"]:
             st.write(response)
 
     except Exception as e:
-        st.error(f"❌ Pipeline execution failed: {e}")
-else:
-    st.warning("Please upload at least one document to enable analysis.")
+        st.error(f"🚫 Pipeline execution failed: {e}")
