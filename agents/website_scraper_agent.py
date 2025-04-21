@@ -1,29 +1,48 @@
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 import tldextract
 import logging
 
 class VCWebsiteScraperAgent:
-    def __init__(self, keywords=None):
+    def __init__(self, keywords=None, max_paragraphs=15):
         self.keywords = keywords or ["portfolio", "companies", "investments", "our-companies", "team", "about"]
+        self.max_paragraphs = max_paragraphs
+        self.session = requests.Session()
+        self.session.headers.update({"User-Agent": "Mozilla/5.0"})
 
     def scrape(self, url):
+        """
+        Scrapes a VC firm's homepage for:
+            - Portfolio-related links
+            - Main visible paragraph text for basic summarization
+
+        Args:
+            url (str): Root VC firm website
+
+        Returns:
+            dict: {
+                "site_text": dict of paragraph text,
+                "portfolio_links": list of URLs
+            }
+        """
         try:
-            res = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+            res = self.session.get(url, timeout=10)
+            res.encoding = res.apparent_encoding
             soup = BeautifulSoup(res.text, "html.parser")
 
-            links = [urljoin(url, a["href"]) for a in soup.find_all("a", href=True)]
-            portfolio_links = [link for link in links if any(k in link.lower() for k in self.keywords)]
+            # Extract and normalize all links
+            all_links = [
+                urljoin(url, a["href"])
+                for a in soup.find_all("a", href=True)
+                if a["href"].startswith("/") or urlparse(a["href"]).netloc
+            ]
+            all_links = list(set(all_links))  # Deduplicate
 
-            paragraphs = soup.find_all("p")
-            text_content = {i: p.get_text(strip=True) for i, p in enumerate(paragraphs[:15])}
+            # Filter links based on portfolio-related keywords
+            portfolio_links = [
+                link for link in all_links
+                if any(k in link.lower() for k in self.keywords)
+            ]
 
-            return {
-                "site_text": text_content,
-                "portfolio_links": list(set(portfolio_links))
-            }
-
-        except Exception as e:
-            logging.error(f"⚠️ Failed to scrape {url}: {e}")
-            return {"site_text": {}, "portfolio_links": []}
+            # Extract and clean visible paragraph
