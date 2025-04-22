@@ -1,14 +1,10 @@
-streamlit>=1.22.0
-python-dotenv>=1.0.0
+streamlit
 openai>=1.0.0
-requests>=2.31.0
-beautifulsoup4>=4.12.2
-PyPDF2>=3.0.1
-matplotlib>=3.7.1
-seaborn>=0.12.2
-networkx>=3.1
-scikit-learn>=1.2.2
-tldextract>=3.4.0
-numpy>=1.24.3
-
-
+scikit-learn
+matplotlib
+numpy
+pandas
+tiktoken
+beautifulsoup4
+requests
+python-dotenv\n# Models configurable with VC_HUNTER_CHAT_MODEL and VC_HUNTER_EMBED_MODEL

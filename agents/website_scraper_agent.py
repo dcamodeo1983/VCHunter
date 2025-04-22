@@ -1,29 +1,24 @@
+
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
-import tldextract
-import logging
 
-class VCWebsiteScraperAgent:
-    def __init__(self, keywords=None):
-        self.keywords = keywords or ["portfolio", "companies", "investments", "our-companies", "team", "about"]
+def scrape_website_text(url):
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
 
-    def scrape(self, url):
-        try:
-            res = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-            soup = BeautifulSoup(res.text, "html.parser")
+        soup = BeautifulSoup(response.text, "html.parser")
 
-            links = [urljoin(url, a["href"]) for a in soup.find_all("a", href=True)]
-            portfolio_links = [link for link in links if any(k in link.lower() for k in self.keywords)]
+        # Remove scripts and styles
+        for script in soup(["script", "style", "noscript"]):
+            script.decompose()
 
-            paragraphs = soup.find_all("p")
-            text_content = {i: p.get_text(strip=True) for i, p in enumerate(paragraphs[:15])}
+        # Get visible text
+        text = soup.get_text(separator="\n")
+        lines = [line.strip() for line in text.splitlines()]
+        filtered_lines = [line for line in lines if line and not line.lower().startswith("copyright")]
+        return "\n".join(filtered_lines[:200])  # limit to first 200 lines
 
-            return {
-                "site_text": text_content,
-                "portfolio_links": list(set(portfolio_links))
-            }
-
-        except Exception as e:
-            logging.error(f"⚠️ Failed to scrape {url}: {e}")
-            return {"site_text": {}, "portfolio_links": []}
+    except Exception as e:
+        raise RuntimeError(f"Failed to scrape {url}: {str(e)}")
