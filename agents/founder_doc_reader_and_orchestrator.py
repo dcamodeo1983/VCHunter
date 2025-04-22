@@ -39,10 +39,27 @@ class VCHunterOrchestrator:
         founder_vec = founder_embeds[0]
 
         vc_urls = [
-            "https://a16z.com", "https://www.benchmark.com", "https://www.accel.com",
-            "https://www.sequoiacap.com", "https://www.greylock.com", "https://www.indexventures.com",
-            "https://www.baincapitalventures.com", "https://www.generalcatalyst.com", "https://www.ivp.com"
-        ]
+    "https://a16z.com",
+    "https://www.sequoiacap.com",
+    "https://www.benchmark.com",
+    "https://www.luxcapital.com",
+    "https://www.8vc.com",
+    "https://www.coatue.com",
+    "https://www.indexventures.com",
+    "https://www.felicis.com",
+    "https://www.greylock.com",
+    "https://www.accel.com",
+    "https://www.lightspeedvp.com",
+    "https://www.generalcatalyst.com",
+    "https://www.ventureast.net",
+    "https://www.dcvc.com",
+    "https://www.crv.com",
+    "https://www.ivp.com",
+    "https://www.bvp.com",
+    "https://www.union.vc",
+    "https://www.cofoundpartners.com",
+    "https://www.signal.vc"
+]
 
         vc_summaries, vc_portfolios = {}, {}
         for url in vc_urls:
